@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
+
+
+
+
+
 class ProfileController extends Controller
 {
     public function __construct()
@@ -49,7 +54,8 @@ class ProfileController extends Controller
             'email.unique' => 'Cette adresse email est déjà utilisée.'
         ]);
 
-        $user->update($validatedData);
+        // Utiliser la méthode updateProfile du modèle User
+        $user->updateProfile($validatedData);
 
         return back()->with('success', 'Profil mis à jour avec succès.');
     }
@@ -76,9 +82,8 @@ class ProfileController extends Controller
             return back()->withErrors(['current_password' => 'Le mot de passe actuel est incorrect.']);
         }
 
-        $user->update([
-            'password' => Hash::make($validatedData['password'])
-        ]);
+        // Utiliser la méthode updatePassword du modèle User
+        $user->updatePassword($validatedData['password']);
 
         return back()->with('success', 'Mot de passe mis à jour avec succès.');
     }

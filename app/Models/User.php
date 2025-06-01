@@ -5,12 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
+
+    protected $table = 'users';
 
     protected $fillable = [
         'nom',
@@ -21,7 +23,7 @@ class User extends Authenticatable
         'statut',
         'telephone',
         'date_creation',
-        'derniere_connexion'
+        'derniere_connexion',
     ];
 
     protected $hidden = [
@@ -31,15 +33,38 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
         'date_creation' => 'datetime',
-        'derniere_connexion' => 'datetime'
+        'derniere_connexion' => 'datetime',
     ];
+
+    const CREATED_AT = 'date_creation';
+    const UPDATED_AT = 'date_modification';
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('statut', 'actif');
+    }
+
+    public function scopeAdmin($query)
+    {
+        return $query->where('role', 'admin');
+    }
+
+    public function scopeTechnicien($query)
+    {
+        return $query->where('role', 'technicien');
+    }
 
     // Relations
     public function taches()
     {
         return $this->hasMany(Task::class, 'id_utilisateur');
+    }
+
+    public function projetsResponsable()
+    {
+        return $this->hasMany(Project::class, 'id_responsable');
     }
 
     public function evenementsOrganises()
@@ -49,12 +74,8 @@ class User extends Authenticatable
 
     public function participationsEvenements()
     {
-        return $this->hasMany(ParticipantEvent::class, 'id_utilisateur');
-    }
-
-    public function projetsResponsable()
-    {
-        return $this->hasMany(Project::class, 'id_responsable');
+        return $this->belongsToMany(Event::class, 'participants_evenements', 'id_utilisateur', 'id_evenement')
+                    ->withPivot('statut_presence');
     }
 
     public function rapports()
@@ -72,234 +93,288 @@ class User extends Authenticatable
         return $this->hasMany(Journal::class, 'utilisateur_id');
     }
 
-    // Scopes
-    public function scopeActive($query)
-    {
-        return $query->where('statut', 'actif');
-    }
-
-    public function scopeInactive($query)
-    {
-        return $query->where('statut', 'inactif');
-    }
-
-    public function scopeAdmins($query)
-    {
-        return $query->where('role', 'admin');
-    }
-
-    public function scopeTechniciens($query)
-    {
-        return $query->where('role', 'technicien');
-    }
-
-    // Accessors & Mutators
+    // Accessors
     public function getNomCompletAttribute()
     {
         return $this->prenom . ' ' . $this->nom;
     }
 
-    public function getInitialesAttribute()
-    {
-        return strtoupper(substr($this->prenom, 0, 1) . substr($this->nom, 0, 1));
-    }
-
-    public function getRoleLibelleAttribute()
-    {
-        return match($this->role) {
-            'admin' => 'Administrateur',
-            'technicien' => 'Technicien',
-            default => 'Utilisateur'
-        };
-    }
-
-    public function getStatutColorAttribute()
-    {
-        return match($this->statut) {
-            'actif' => 'success',
-            'inactif' => 'danger',
-            default => 'secondary'
-        };
-    }
-
-    // Méthodes de vérification des rôles
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isTechnicien()
-    {
-        return $this->role === 'technicien';
-    }
-
-    public function isActive()
-    {
-        return $this->statut === 'actif';
-    }
-
-    // Méthodes métier
-    public function enregistrerConnexion()
-    {
-        $this->update([
-            'derniere_connexion' => now()
-        ]);
-
-        Journal::enregistrerConnexion($this->id);
-    }
-
-    public function creerNotification($titre, $message, $type = 'systeme')
-    {
-        return $this->notifications()->create([
-            'titre' => $titre,
-            'message' => $message,
-            'type' => $type,
-            'lue' => false,
-            'date_creation' => now()
-        ]);
-    }
-
     public function getNotificationsNonLuesAttribute()
     {
-        return $this->notifications()->where('lue', false)->orderBy('date_creation', 'desc');
+        return $this->notifications()->where('lue', false)->get();
     }
 
-    public function getNombreNotificationsNonLuesAttribute()
-    {
-        return $this->getNotificationsNonLuesAttribute()->count();
-    }
-
-    public function marquerNotificationsCommeLues()
-    {
-        return $this->notifications()
-                    ->where('lue', false)
-                    ->update([
-                        'lue' => true,
-                        'date_lecture' => now()
-                    ]);
-    }
-
-    // Statistiques des tâches
     public function getNombreTachesParStatutAttribute()
     {
         return [
             'a_faire' => $this->taches()->where('statut', 'a_faire')->count(),
             'en_cours' => $this->taches()->where('statut', 'en_cours')->count(),
-            'termine' => $this->taches()->where('statut', 'termine')->count()
+            'termine' => $this->taches()->where('statut', 'termine')->count(),
         ];
     }
 
-    public function getTauxCompletionTaches()
-    {
-        $totalTaches = $this->taches()->count();
-        if ($totalTaches === 0) {
-            return 0;
-        }
-
-        $tachesTerminees = $this->taches()->where('statut', 'termine')->count();
-        return round(($tachesTerminees / $totalTaches) * 100, 1);
-    }
-
-    public function getTachesEnRetard()
-    {
-        return $this->taches()
-                    ->where('date_echeance', '<', Carbon::today())
-                    ->whereIn('statut', ['a_faire', 'en_cours']);
-    }
-
-    public function getNombreTachesEnRetardAttribute()
-    {
-        return $this->getTachesEnRetard()->count();
-    }
-
-    // Statistiques des projets
     public function getNombreProjetsParStatutAttribute()
     {
         return [
             'planifie' => $this->projetsResponsable()->where('statut', 'planifie')->count(),
             'en_cours' => $this->projetsResponsable()->where('statut', 'en_cours')->count(),
             'termine' => $this->projetsResponsable()->where('statut', 'termine')->count(),
-            'suspendu' => $this->projetsResponsable()->where('statut', 'suspendu')->count()
+            'suspendu' => $this->projetsResponsable()->where('statut', 'suspendu')->count(),
         ];
     }
 
-    public function getProjetsActifs()
+    // Méthodes métier principales
+
+    /**
+     * Vérifier si l'utilisateur est actif
+     */
+    public function isActive()
     {
-        return $this->projetsResponsable()
-                    ->whereIn('statut', ['planifie', 'en_cours'])
-                    ->orderBy('date_debut');
+        return $this->statut === 'actif';
     }
 
-    // Événements
-    public function getEvenementsAVenir()
+    /**
+     * Vérifier si l'utilisateur est administrateur
+     */
+    public function isAdmin()
     {
-        return $this->participationsEvenements()
-                    ->whereHas('evenement', function($query) {
-                        $query->where('date_debut', '>', now())
-                              ->whereIn('statut', ['planifie', 'en_cours']);
-                    })
-                    ->with('evenement')
-                    ->orderBy(function($query) {
-                        $query->select('date_debut')
-                              ->from('evenements')
-                              ->whereColumn('evenements.id', 'participants_evenements.id_evenement');
-                    });
+        return $this->role === 'admin';
     }
 
-    public function getEvenementsDuJour()
+    /**
+     * Vérifier si l'utilisateur est technicien
+     */
+    public function isTechnicien()
     {
-        return $this->participationsEvenements()
-                    ->whereHas('evenement', function($query) {
-                        $query->whereDate('date_debut', today());
-                    })
-                    ->with('evenement');
+        return $this->role === 'technicien';
     }
 
-    // Rapports
-    public function getRapportsDuMois()
+    /**
+     * Mettre à jour les informations de profil
+     */
+    public function updateProfile(array $data)
     {
-        return $this->rapports()
-                    ->whereMonth('date_creation', now()->month)
-                    ->whereYear('date_creation', now()->year);
+        return $this->update($data);
     }
 
-    public function getNombreRapportsDuMoisAttribute()
+    /**
+     * Mettre à jour le mot de passe
+     */
+    public function updatePassword(string $newPassword)
     {
-        return $this->getRapportsDuMois()->count();
+        return $this->update(['password' => Hash::make($newPassword)]);
     }
 
-    // Méthodes de performance
-    public function getStatistiquesPerformance()
+    /**
+     * Enregistrer une connexion
+     */
+    public function enregistrerConnexion()
     {
+        $this->update(['derniere_connexion' => now()]);
+
+        // Enregistrer dans le journal si la classe existe
+        if (class_exists('App\Models\Journal')) {
+            \App\Models\Journal::enregistrerAction('connexion', 'Connexion de : ' . $this->nom_complet, $this->id);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Activer/Désactiver un utilisateur
+     */
+    public function toggleStatus()
+    {
+        $nouveauStatut = $this->statut === 'actif' ? 'inactif' : 'actif';
+        $this->update(['statut' => $nouveauStatut]);
+
+        if (class_exists('App\Models\Journal')) {
+            \App\Models\Journal::enregistrerModification('utilisateur', "Statut changé vers : {$nouveauStatut}", $this->id);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Créer une notification pour cet utilisateur
+     */
+    public function creerNotification($titre, $message, $type = 'systeme')
+    {
+        if (class_exists('App\Models\Notification')) {
+            return \App\Models\Notification::create([
+                'titre' => $titre,
+                'message' => $message,
+                'type' => $type,
+                'destinataire_id' => $this->id,
+                'lue' => false,
+            ]);
+        }
+        return null;
+    }
+
+    /**
+     * Marquer toutes les notifications comme lues
+     */
+    public function marquerNotificationsLues()
+    {
+        return $this->notifications()->where('lue', false)->update(['lue' => true]);
+    }
+
+    /**
+     * Obtenir les événements à venir pour cet utilisateur
+     */
+    public function getEvenementsAVenir($limite = 10)
+    {
+        $evenementsOrganises = $this->evenementsOrganises()
+                                   ->where('date_debut', '>=', now())
+                                   ->orderBy('date_debut')
+                                   ->limit($limite)
+                                   ->get();
+
+        $evenementsParticipes = $this->participationsEvenements()
+                                    ->where('date_debut', '>=', now())
+                                    ->orderBy('date_debut')
+                                    ->limit($limite)
+                                    ->get();
+
+        return $evenementsOrganises->concat($evenementsParticipes)
+                                  ->sortBy('date_debut')
+                                  ->take($limite);
+    }
+
+    /**
+     * Obtenir les projets actifs pour cet utilisateur
+     */
+    public function getProjetsActifs($limite = 10)
+    {
+        // Projets dont il est responsable
+        $projetsResponsable = $this->projetsResponsable()
+                                  ->whereIn('statut', ['planifie', 'en_cours'])
+                                  ->limit($limite)
+                                  ->get();
+
+        // Projets où il a des tâches
+        if (class_exists('App\Models\Project')) {
+            $projetsAvecTaches = \App\Models\Project::whereHas('taches', function($query) {
+                                            $query->where('id_utilisateur', $this->id);
+                                        })
+                                        ->whereIn('statut', ['planifie', 'en_cours'])
+                                        ->limit($limite)
+                                        ->get();
+
+            return $projetsResponsable->concat($projetsAvecTaches)
+                                      ->unique('id')
+                                      ->take($limite);
+        }
+
+        return $projetsResponsable->take($limite);
+    }
+
+    /**
+     * Calculer le taux de completion des tâches
+     */
+    public function getTauxCompletionTaches()
+    {
+        $totalTaches = $this->taches()->count();
+
+        if ($totalTaches === 0) {
+            return 0;
+        }
+
+        $tachesCompletes = $this->taches()->where('statut', 'termine')->count();
+
+        return round(($tachesCompletes / $totalTaches) * 100, 1);
+    }
+
+    /**
+     * Obtenir les statistiques de performance
+     */
+    public function getStatistiquesPerformance($periode = 30)
+    {
+        $dateDebut = Carbon::now()->subDays($periode);
+
         return [
-            'taches_completees_mois' => $this->taches()
-                                            ->where('statut', 'termine')
-                                            ->whereMonth('date_modification', now()->month)
-                                            ->count(),
+            'taches_completees' => $this->taches()
+                                       ->where('statut', 'termine')
+                                       ->where('date_modification', '>=', $dateDebut)
+                                       ->count(),
+            'rapports_soumis' => $this->rapports()
+                                     ->where('date_creation', '>=', $dateDebut)
+                                     ->count(),
+            'evenements_organises' => $this->evenementsOrganises()
+                                          ->where('date_creation', '>=', $dateDebut)
+                                          ->count(),
             'taux_completion' => $this->getTauxCompletionTaches(),
-            'taches_en_retard' => $this->nombre_taches_en_retard,
-            'rapports_soumis_mois' => $this->nombre_rapports_du_mois,
-            'projets_actifs' => $this->getProjetsActifs()->count()
         ];
     }
 
-    // Méthodes statiques
-    public static function getUtilisateursActifs()
+    /**
+     * Réinitialiser le mot de passe
+     */
+    public function resetPassword($nouveauMotDePasse = null)
     {
-        return static::where('statut', 'actif')->orderBy('nom');
+        if (!$nouveauMotDePasse) {
+            $nouveauMotDePasse = 'password123'; // Mot de passe temporaire
+        }
+
+        $this->update(['password' => Hash::make($nouveauMotDePasse)]);
+
+        if (class_exists('App\Models\Journal')) {
+            \App\Models\Journal::enregistrerModification('utilisateur', 'Mot de passe réinitialisé', $this->id);
+        }
+
+        return $nouveauMotDePasse;
     }
 
-    public static function getTechniciens()
+    /**
+     * Vérifier si l'utilisateur peut être supprimé
+     */
+    public function peutEtreSuprime()
     {
-        return static::where('role', 'technicien')
-                    ->where('statut', 'actif')
-                    ->orderBy('nom');
+        return $this->taches()->count() === 0 &&
+               $this->projetsResponsable()->count() === 0 &&
+               $this->evenementsOrganises()->count() === 0 &&
+               $this->rapports()->count() === 0;
     }
 
-    public static function getAdministrateurs()
+    /**
+     * Obtenir les permissions de l'utilisateur
+     */
+    public function getPermissions()
     {
-        return static::where('role', 'admin')
-                    ->where('statut', 'actif')
-                    ->orderBy('nom');
+        if ($this->isAdmin()) {
+            return [
+                'gerer_utilisateurs',
+                'gerer_projets',
+                'gerer_taches',
+                'gerer_evenements',
+                'voir_tous_rapports',
+                'exporter_donnees',
+                'configuration_systeme',
+            ];
+        }
+
+        return [
+            'gerer_mes_taches',
+            'creer_evenements',
+            'soumettre_rapports',
+            'voir_mes_rapports',
+        ];
+    }
+
+    /**
+     * Vérifier une permission spécifique
+     */
+    public function hasPermission($permission)
+    {
+        return in_array($permission, $this->getPermissions());
+    }
+
+    /**
+     * Mutator pour le mot de passe (hachage automatique)
+     */
+    public function setPasswordAttribute($value)
+    {
+        $this->attributes['password'] = Hash::make($value);
     }
 }

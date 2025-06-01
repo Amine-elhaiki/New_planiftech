@@ -6,18 +6,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // Supprimer les colonnes existantes si elles existent
+            // Supprimer name si elle existe
             if (Schema::hasColumn('users', 'name')) {
                 $table->dropColumn('name');
             }
 
-            // Ajouter les nouvelles colonnes
+            // Ajouter les nouvelles colonnes (SANS date_modification)
             $table->string('nom', 50)->after('id');
             $table->string('prenom', 50)->after('nom');
             $table->enum('role', ['admin', 'technicien'])->default('technicien')->after('email');
@@ -26,34 +23,19 @@ return new class extends Migration
             $table->timestamp('date_creation')->default(now())->after('telephone');
             $table->timestamp('derniere_connexion')->nullable()->after('date_creation');
 
-            // Index pour optimiser les requêtes
+            // Index
             $table->index(['role', 'statut']);
             $table->index('statut');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // Supprimer les colonnes ajoutées
             $table->dropColumn([
-                'nom',
-                'prenom',
-                'role',
-                'statut',
-                'telephone',
-                'date_creation',
-                'derniere_connexion'
+                'nom', 'prenom', 'role', 'statut', 'telephone',
+                'date_creation', 'derniere_connexion'
             ]);
-
-            // Supprimer les index
-            $table->dropIndex(['users_role_statut_index']);
-            $table->dropIndex(['users_statut_index']);
-
-            // Remettre la colonne name si nécessaire
             $table->string('name')->after('id');
         });
     }

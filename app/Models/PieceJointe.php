@@ -90,7 +90,15 @@ class PieceJointe extends Model
     public function obtenirUrl()
     {
         if ($this->existe()) {
-            return Storage::disk('public')->url($this->chemin);
+            return Storage::disk('public')->path($this->chemin);
+        }
+        return null;
+    }
+
+    public function obtenirUrlPublique()
+    {
+        if ($this->existe()) {
+            return asset('storage/' . $this->chemin);
         }
         return null;
     }

@@ -305,6 +305,7 @@ class ReportController extends Controller
     /**
      * Télécharger une pièce jointe
      */
+    
     public function downloadAttachment(PieceJointe $pieceJointe)
     {
         // Vérifier les permissions
@@ -317,8 +318,20 @@ class ReportController extends Controller
             abort(404, 'Fichier non trouvé.');
         }
 
-        return Storage::disk('public')->download($pieceJointe->chemin, $pieceJointe->nom_fichier);
+        // Obtenir le chemin complet du fichier
+        $filePath = Storage::disk('public')->path($pieceJointe->chemin);
+
+        // Vérifier que le fichier existe physiquement
+        if (!file_exists($filePath)) {
+            abort(404, 'Fichier non trouvé sur le serveur.');
+        }
+
+        // Retourner le téléchargement du fichier
+        return response()->download($filePath, $pieceJointe->nom_fichier, [
+            'Content-Type' => $pieceJointe->type_fichier,
+        ]);
     }
+
 
     /**
      * Supprimer une pièce jointe

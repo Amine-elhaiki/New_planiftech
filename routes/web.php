@@ -14,11 +14,6 @@ use App\Http\Controllers\ProfileController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group.
-|
 */
 
 // Page d'accueil - redirection vers login ou dashboard
@@ -220,13 +215,11 @@ Route::middleware(['auth', 'active.user'])->group(function () {
 
         // Journaux d'activité
         Route::get('/logs', function () {
-            // Cette route peut être étendue pour afficher les logs d'activité
             return view('admin.logs');
         })->name('logs');
 
         // Tableau de bord admin
         Route::get('/dashboard', function () {
-            // Dashboard spécifique aux administrateurs
             return view('admin.dashboard');
         })->name('dashboard');
 
