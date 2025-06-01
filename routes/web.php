@@ -2,18 +2,43 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\ProfileController;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register web routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "web" middleware group.
+|
+*/
 
 // Page d'accueil - redirection vers login ou dashboard
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
-});
+})->name('home');
 
-// Routes d'authentification Laravel 12
+/*
+|--------------------------------------------------------------------------
+| Routes d'authentification
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware('guest')->group(function () {
+    // Page de connexion
     Route::get('/login', function () {
         return view('auth.login');
     })->name('login');
 
+    // Traitement de la connexion
     Route::post('/login', function () {
         $credentials = request()->validate([
             'email' => 'required|email',
@@ -22,15 +47,25 @@ Route::middleware('guest')->group(function () {
 
         if (Auth::attempt($credentials, request()->boolean('remember'))) {
             request()->session()->regenerate();
+
+            // Vérifier si l'utilisateur est actif
+            if (!Auth::user()->isActive()) {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Votre compte a été désactivé. Contactez l\'administrateur.',
+                ]);
+            }
+
             return redirect()->intended('/dashboard');
         }
 
         return back()->withErrors([
             'email' => 'Les informations de connexion ne correspondent pas à nos enregistrements.',
         ])->onlyInput('email');
-    });
+    })->name('login.post');
 });
 
+// Déconnexion
 Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
@@ -38,41 +73,303 @@ Route::post('/logout', function () {
     return redirect('/');
 })->middleware('auth')->name('logout');
 
-// Route temporaire pour le dashboard
-Route::get('/dashboard', function () {
-    return view('dashboard.index');
-})->middleware('auth')->name('dashboard');
+/*
+|--------------------------------------------------------------------------
+| Routes protégées par authentification
+|--------------------------------------------------------------------------
+*/
 
-// Routes temporaires pour tester
-Route::middleware(['auth'])->group(function () {
-    Route::get('/tasks', function () {
-        return view('tasks.index');
-    })->name('tasks.index');
+Route::middleware(['auth', 'active.user'])->group(function () {
 
-    Route::get('/events', function () {
-        return view('events.index');
-    })->name('events.index');
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/projects', function () {
-        return view('projects.index');
-    })->name('projects.index');
+    /*
+    |--------------------------------------------------------------------------
+    | Gestion du profil utilisateur
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ProfileController::class, 'edit'])->name('edit');
+        Route::patch('/', [ProfileController::class, 'update'])->name('update');
+        Route::patch('/password', [ProfileController::class, 'updatePassword'])->name('password.update');
+    });
 
-    Route::get('/reports', function () {
-        return view('reports.index');
-    })->name('reports.index');
+    /*
+    |--------------------------------------------------------------------------
+    | Gestion des tâches
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('tasks')->name('tasks.')->group(function () {
+        Route::get('/', [TaskController::class, 'index'])->name('index');
+        Route::get('/create', [TaskController::class, 'create'])->name('create')->middleware('admin');
+        Route::post('/', [TaskController::class, 'store'])->name('store')->middleware('admin');
+        Route::get('/{task}', [TaskController::class, 'show'])->name('show');
+        Route::get('/{task}/edit', [TaskController::class, 'edit'])->name('edit')->middleware('admin');
+        Route::put('/{task}', [TaskController::class, 'update'])->name('update')->middleware('admin');
+        Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy')->middleware('admin');
 
-    Route::get('/profile', function () {
-        return view('profile.edit');
-    })->name('profile.edit');
-});
+        // Actions spéciales pour les tâches
+        Route::patch('/{task}/status', [TaskController::class, 'updateStatus'])->name('update-status');
+        Route::patch('/{task}/complete', [TaskController::class, 'markCompleted'])->name('complete');
 
-// Routes admin temporaires
-Route::middleware(['auth', 'admin'])->group(function () {
+        // API et vues spéciales
+        Route::get('/api/list', [TaskController::class, 'api'])->name('api');
+        Route::get('/calendar/data', [TaskController::class, 'calendar'])->name('calendar');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gestion des événements
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('events')->name('events.')->group(function () {
+        Route::get('/', [EventController::class, 'index'])->name('index');
+        Route::get('/create', [EventController::class, 'create'])->name('create');
+        Route::post('/', [EventController::class, 'store'])->name('store');
+        Route::get('/{event}', [EventController::class, 'show'])->name('show');
+        Route::get('/{event}/edit', [EventController::class, 'edit'])->name('edit');
+        Route::put('/{event}', [EventController::class, 'update'])->name('update');
+        Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
+
+        // Actions spéciales pour les événements
+        Route::patch('/{event}/participation', [EventController::class, 'updateParticipation'])->name('participation');
+        Route::patch('/{event}/complete', [EventController::class, 'markCompleted'])->name('complete');
+        Route::patch('/{event}/cancel', [EventController::class, 'cancel'])->name('cancel');
+        Route::patch('/{event}/postpone', [EventController::class, 'postpone'])->name('postpone');
+
+        // API pour le calendrier
+        Route::get('/calendar/data', [EventController::class, 'calendar'])->name('calendar');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gestion des projets
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('projects')->name('projects.')->group(function () {
+        Route::get('/', [ProjectController::class, 'index'])->name('index');
+        Route::get('/create', [ProjectController::class, 'create'])->name('create')->middleware('admin');
+        Route::post('/', [ProjectController::class, 'store'])->name('store')->middleware('admin');
+        Route::get('/{project}', [ProjectController::class, 'show'])->name('show');
+        Route::get('/{project}/edit', [ProjectController::class, 'edit'])->name('edit')->middleware('admin');
+        Route::put('/{project}', [ProjectController::class, 'update'])->name('update')->middleware('admin');
+        Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy')->middleware('admin');
+
+        // Actions spéciales pour les projets
+        Route::patch('/{project}/status', [ProjectController::class, 'updateStatus'])->name('update-status');
+        Route::patch('/{project}/archive', [ProjectController::class, 'archive'])->name('archive')->middleware('admin');
+        Route::get('/{project}/report', [ProjectController::class, 'report'])->name('report');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gestion des rapports
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/create', [ReportController::class, 'create'])->name('create');
+        Route::post('/', [ReportController::class, 'store'])->name('store');
+        Route::get('/{report}', [ReportController::class, 'show'])->name('show');
+        Route::get('/{report}/edit', [ReportController::class, 'edit'])->name('edit');
+        Route::put('/{report}', [ReportController::class, 'update'])->name('update');
+        Route::delete('/{report}', [ReportController::class, 'destroy'])->name('destroy');
+
+        // Gestion des pièces jointes
+        Route::get('/attachments/{pieceJointe}/download', [ReportController::class, 'downloadAttachment'])->name('attachments.download');
+        Route::delete('/attachments/{pieceJointe}', [ReportController::class, 'deleteAttachment'])->name('attachments.delete');
+
+        // Export et statistiques
+        Route::get('/{report}/pdf', [ReportController::class, 'exportPdf'])->name('pdf');
+        Route::post('/export/multiple', [ReportController::class, 'exportMultiplePdf'])->name('export.multiple');
+        Route::get('/statistics/overview', [ReportController::class, 'statistics'])->name('statistics')->middleware('admin');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Administration des utilisateurs (Admin uniquement)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+
+        // Gestion des utilisateurs
+        Route::prefix('users')->name('users.')->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::get('/create', [UserController::class, 'create'])->name('create');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::get('/{user}', [UserController::class, 'show'])->name('show');
+            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+
+            // Actions spéciales
+            Route::patch('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
+            Route::patch('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
+            Route::patch('/{user}/update-password', [UserController::class, 'updatePassword'])->name('update-password');
+
+            // Export et recherche
+            Route::get('/export/csv', [UserController::class, 'export'])->name('export');
+            Route::get('/search/api', [UserController::class, 'search'])->name('search');
+            Route::get('/statistics/overview', [UserController::class, 'statistics'])->name('statistics');
+        });
+
+        // Journaux d'activité
+        Route::get('/logs', function () {
+            // Cette route peut être étendue pour afficher les logs d'activité
+            return view('admin.logs');
+        })->name('logs');
+
+        // Tableau de bord admin
+        Route::get('/dashboard', function () {
+            // Dashboard spécifique aux administrateurs
+            return view('admin.dashboard');
+        })->name('dashboard');
+
+        // Configuration système
+        Route::prefix('settings')->name('settings.')->group(function () {
+            Route::get('/', function () {
+                return view('admin.settings.index');
+            })->name('index');
+
+            Route::get('/general', function () {
+                return view('admin.settings.general');
+            })->name('general');
+
+            Route::get('/security', function () {
+                return view('admin.settings.security');
+            })->name('security');
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routes API internes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('api')->name('api.')->group(function () {
+        // API pour les données du dashboard
+        Route::get('/dashboard/stats', [DashboardController::class, 'getStats'])->name('dashboard.stats');
+        Route::get('/dashboard/activities', [DashboardController::class, 'getActivities'])->name('dashboard.activities');
+
+        // API pour la recherche globale
+        Route::get('/search', function () {
+            $query = request()->input('q', '');
+            $results = [];
+
+            if (strlen($query) >= 2) {
+                // Recherche dans les tâches
+                $tasks = \App\Models\Task::where('titre', 'like', "%{$query}%")
+                                        ->limit(5)
+                                        ->get(['id', 'titre', 'statut']);
+
+                // Recherche dans les événements
+                $events = \App\Models\Event::where('titre', 'like', "%{$query}%")
+                                          ->limit(5)
+                                          ->get(['id', 'titre', 'statut']);
+
+                // Recherche dans les projets
+                $projects = \App\Models\Project::where('nom', 'like', "%{$query}%")
+                                              ->limit(5)
+                                              ->get(['id', 'nom', 'statut']);
+
+                $results = [
+                    'tasks' => $tasks,
+                    'events' => $events,
+                    'projects' => $projects
+                ];
+            }
+
+            return response()->json($results);
+        })->name('search');
+
+        // API pour les notifications (futures)
+        Route::get('/notifications', function () {
+            return response()->json([]);
+        })->name('notifications');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routes pour les redirections compatibles
+    |--------------------------------------------------------------------------
+    */
+
+    // Alias pour la gestion des utilisateurs (accessible via le menu principal)
     Route::get('/users', function () {
-        return view('users.index');
-    })->name('users.index');
-
-    Route::get('/admin/logs', function () {
-        return view('admin.logs');
-    })->name('admin.logs');
+        return redirect()->route('admin.users.index');
+    })->name('users.index')->middleware('admin');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Routes publiques (sans authentification)
+|--------------------------------------------------------------------------
+*/
+
+// Page d'information sur l'application
+Route::get('/about', function () {
+    return view('about');
+})->name('about');
+
+// Page de contact/support
+Route::get('/support', function () {
+    return view('support');
+})->name('support');
+
+// Health check pour le monitoring
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'version' => config('app.version', '1.0.0')
+    ]);
+})->name('health');
+
+/*
+|--------------------------------------------------------------------------
+| Routes de fallback
+|--------------------------------------------------------------------------
+*/
+
+// Route de fallback pour les URL non trouvées
+Route::fallback(function () {
+    if (request()->expectsJson()) {
+        return response()->json(['message' => 'Route non trouvée'], 404);
+    }
+
+    return view('errors.404');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Middleware globaux appliqués
+|--------------------------------------------------------------------------
+|
+| Les middlewares suivants sont appliqués :
+| - 'web' : Sessions, CSRF protection, cookies encryption
+| - 'auth' : Vérification de l'authentification
+| - 'active.user' : Vérification que l'utilisateur est actif
+| - 'admin' : Vérification du rôle administrateur
+| - 'activity.log' : Logging des activités importantes
+|
+| Configuration dans app/Http/Kernel.php :
+|
+| protected $middlewareGroups = [
+|     'web' => [
+|         \App\Http\Middleware\EncryptCookies::class,
+|         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+|         \Illuminate\Session\Middleware\StartSession::class,
+|         \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+|         \App\Http\Middleware\VerifyCsrfToken::class,
+|         \Illuminate\Routing\Middleware\SubstituteBindings::class,
+|         \App\Http\Middleware\ActivityLogMiddleware::class,
+|     ],
+| ];
+|
+|--------------------------------------------------------------------------
+*/
