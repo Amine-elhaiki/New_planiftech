@@ -186,7 +186,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
 
         // Export et statistiques
         Route::get('/{report}/pdf', [ReportController::class, 'exportPdf'])->name('pdf');
-        Route::post('/export/multiple', [ReportController::class, 'exportMultiplePdf'])->name('export.multiple');
+        Route::post('/export/multiple', [ReportController::class, 'exportMultiple'])->name('export.multiple');
         Route::get('/statistics/overview', [ReportController::class, 'statistics'])->name('statistics')->middleware('admin');
     });
 
@@ -253,8 +253,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     */
     Route::prefix('api')->name('api.')->group(function () {
         // API pour les données du dashboard
-        Route::get('/dashboard/stats', [DashboardController::class, 'getStats'])->name('dashboard.stats');
-        Route::get('/dashboard/activities', [DashboardController::class, 'getActivities'])->name('dashboard.activities');
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
 
         // API pour la recherche globale
         Route::get('/search', function () {
@@ -344,32 +343,3 @@ Route::fallback(function () {
 
     return view('errors.404');
 });
-
-/*
-|--------------------------------------------------------------------------
-| Middleware globaux appliqués
-|--------------------------------------------------------------------------
-|
-| Les middlewares suivants sont appliqués :
-| - 'web' : Sessions, CSRF protection, cookies encryption
-| - 'auth' : Vérification de l'authentification
-| - 'active.user' : Vérification que l'utilisateur est actif
-| - 'admin' : Vérification du rôle administrateur
-| - 'activity.log' : Logging des activités importantes
-|
-| Configuration dans app/Http/Kernel.php :
-|
-| protected $middlewareGroups = [
-|     'web' => [
-|         \App\Http\Middleware\EncryptCookies::class,
-|         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-|         \Illuminate\Session\Middleware\StartSession::class,
-|         \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-|         \App\Http\Middleware\VerifyCsrfToken::class,
-|         \Illuminate\Routing\Middleware\SubstituteBindings::class,
-|         \App\Http\Middleware\ActivityLogMiddleware::class,
-|     ],
-| ];
-|
-|--------------------------------------------------------------------------
-*/

@@ -5,21 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable;
 
     protected $fillable = [
         'nom',
         'prenom',
         'email',
         'password',
-        'telephone',
         'role',
         'statut',
+        'telephone',
+        'date_creation',
+        'derniere_connexion'
     ];
 
     protected $hidden = [
@@ -30,310 +32,274 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'date_creation' => 'datetime',
+        'derniere_connexion' => 'datetime'
     ];
 
-    protected $dates = [
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ];
-
-    // Constantes pour les rôles
-    const ROLE_ADMIN = 'admin';
-    const ROLE_TECHNICIEN = 'technicien';
-
-    // Constantes pour les statuts
-    const STATUT_ACTIF = 'actif';
-    const STATUT_INACTIF = 'inactif';
-
-    /**
-     * Vérifier si l'utilisateur est administrateur
-     */
-    public function isAdmin(): bool
-    {
-        return $this->role === self::ROLE_ADMIN;
-    }
-
-    /**
-     * Vérifier si l'utilisateur est technicien
-     */
-    public function isTechnicien(): bool
-    {
-        return $this->role === self::ROLE_TECHNICIEN;
-    }
-
-    /**
-     * Vérifier si l'utilisateur est actif
-     */
-    public function isActive(): bool
-    {
-        return $this->statut === self::STATUT_ACTIF;
-    }
-
-    /**
-     * Obtenir le nom complet de l'utilisateur
-     */
-    public function getFullNameAttribute(): string
-    {
-        return $this->prenom . ' ' . $this->nom;
-    }
-
-    /**
-     * Obtenir les initiales de l'utilisateur
-     */
-    public function getInitialsAttribute(): string
-    {
-        return strtoupper(substr($this->prenom, 0, 1) . substr($this->nom, 0, 1));
-    }
-
-    /**
-     * Formater le rôle pour l'affichage
-     */
-    public function getRoleDisplayAttribute(): string
-    {
-        return match($this->role) {
-            self::ROLE_ADMIN => 'Administrateur',
-            self::ROLE_TECHNICIEN => 'Technicien',
-            default => ucfirst($this->role)
-        };
-    }
-
-    /**
-     * Relation avec les tâches assignées
-     */
+    // Relations
     public function taches()
     {
         return $this->hasMany(Task::class, 'id_utilisateur');
     }
 
-    /**
-     * Relation avec les tâches actives (non terminées)
-     */
-    public function tachesActives()
-    {
-        return $this->hasMany(Task::class, 'id_utilisateur')
-                    ->whereIn('statut', ['a_faire', 'en_cours']);
-    }
-
-    /**
-     * Relation avec les tâches en retard
-     */
-    public function tachesEnRetard()
-    {
-        return $this->hasMany(Task::class, 'id_utilisateur')
-                    ->where('date_echeance', '<', Carbon::today())
-                    ->whereIn('statut', ['a_faire', 'en_cours']);
-    }
-
-    /**
-     * Relation avec les événements organisés
-     */
     public function evenementsOrganises()
     {
         return $this->hasMany(Event::class, 'id_organisateur');
     }
 
-    /**
-     * Relation avec les participations aux événements
-     */
     public function participationsEvenements()
     {
         return $this->hasMany(ParticipantEvent::class, 'id_utilisateur');
     }
 
-    /**
-     * Relation avec les événements où l'utilisateur participe
-     */
-    public function evenements()
-    {
-        return $this->belongsToMany(Event::class, 'participants_evenements', 'id_utilisateur', 'id_evenement')
-                    ->withPivot('statut_presence')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Relation avec les projets dont l'utilisateur est responsable
-     */
     public function projetsResponsable()
     {
         return $this->hasMany(Project::class, 'id_responsable');
     }
 
-    /**
-     * Relation avec les rapports créés
-     */
     public function rapports()
     {
         return $this->hasMany(Report::class, 'id_utilisateur');
     }
 
-    /**
-     * Scope pour les utilisateurs actifs
-     */
-    public function scopeActifs($query)
+    public function notifications()
     {
-        return $query->where('statut', self::STATUT_ACTIF);
+        return $this->hasMany(Notification::class, 'destinataire_id');
     }
 
-    /**
-     * Scope pour les administrateurs
-     */
+    public function journaux()
+    {
+        return $this->hasMany(Journal::class, 'utilisateur_id');
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('statut', 'actif');
+    }
+
+    public function scopeInactive($query)
+    {
+        return $query->where('statut', 'inactif');
+    }
+
     public function scopeAdmins($query)
     {
-        return $query->where('role', self::ROLE_ADMIN);
+        return $query->where('role', 'admin');
     }
 
-    /**
-     * Scope pour les techniciens
-     */
     public function scopeTechniciens($query)
     {
-        return $query->where('role', self::ROLE_TECHNICIEN);
+        return $query->where('role', 'technicien');
     }
 
-    /**
-     * Obtenir les statistiques de performance de l'utilisateur
-     */
-    public function getPerformanceStats()
+    // Accessors & Mutators
+    public function getNomCompletAttribute()
     {
-        $totalTasks = $this->taches()->count();
-        $completedTasks = $this->taches()->where('statut', 'termine')->count();
-        $overdueTasks = $this->tachesEnRetard()->count();
-
-        return [
-            'total_tasks' => $totalTasks,
-            'completed_tasks' => $completedTasks,
-            'completion_rate' => $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1) : 0,
-            'overdue_tasks' => $overdueTasks,
-            'events_organized' => $this->evenementsOrganises()->count(),
-            'reports_submitted' => $this->rapports()->count(),
-            'projects_responsible' => $this->projetsResponsable()->count()
-        ];
+        return $this->prenom . ' ' . $this->nom;
     }
 
-    /**
-     * Obtenir la charge de travail actuelle
-     */
-    public function getCurrentWorkload()
+    public function getInitialesAttribute()
     {
-        return [
-            'active_tasks' => $this->tachesActives()->count(),
-            'overdue_tasks' => $this->tachesEnRetard()->count(),
-            'upcoming_events' => $this->evenements()
-                                     ->where('date_debut', '>=', Carbon::now())
-                                     ->where('date_debut', '<=', Carbon::now()->addDays(7))
-                                     ->count(),
-            'pending_reports' => $this->taches()
-                                     ->where('statut', 'termine')
-                                     ->whereDoesntHave('rapports')
-                                     ->count()
-        ];
+        return strtoupper(substr($this->prenom, 0, 1) . substr($this->nom, 0, 1));
     }
 
-    /**
-     * Vérifier si l'utilisateur peut modifier une ressource
-     */
-    public function canModify($resource): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        // Vérifications spécifiques selon le type de ressource
-        if ($resource instanceof Task) {
-            return $resource->id_utilisateur === $this->id;
-        }
-
-        if ($resource instanceof Event) {
-            return $resource->id_organisateur === $this->id ||
-                   $resource->participants->contains('id', $this->id);
-        }
-
-        if ($resource instanceof Project) {
-            return $resource->id_responsable === $this->id;
-        }
-
-        if ($resource instanceof Report) {
-            return $resource->id_utilisateur === $this->id;
-        }
-
-        return false;
-    }
-
-    /**
-     * Obtenir la couleur associée au rôle
-     */
-    public function getRoleColorAttribute(): string
+    public function getRoleLibelleAttribute()
     {
         return match($this->role) {
-            self::ROLE_ADMIN => 'danger',
-            self::ROLE_TECHNICIEN => 'primary',
+            'admin' => 'Administrateur',
+            'technicien' => 'Technicien',
+            default => 'Utilisateur'
+        };
+    }
+
+    public function getStatutColorAttribute()
+    {
+        return match($this->statut) {
+            'actif' => 'success',
+            'inactif' => 'danger',
             default => 'secondary'
         };
     }
 
-    /**
-     * Obtenir l'avatar ou les initiales
-     */
-    public function getAvatarAttribute(): string
+    // Méthodes de vérification des rôles
+    public function isAdmin()
     {
-        // Pour l'instant, on retourne les initiales
-        // Dans le futur, on pourrait intégrer Gravatar ou un système d'upload
-        return $this->initials;
+        return $this->role === 'admin';
     }
 
-    /**
-     * Obtenir les projets où l'utilisateur est impliqué
-     */
-    public function getAllProjects()
+    public function isTechnicien()
     {
-        $responsibleProjects = $this->projetsResponsable()->pluck('id');
-
-        $involvedProjects = Project::whereHas('taches', function($query) {
-            $query->where('id_utilisateur', $this->id);
-        })->pluck('id');
-
-        $eventProjects = Project::whereHas('evenements.participants', function($query) {
-            $query->where('id_utilisateur', $this->id);
-        })->pluck('id');
-
-        $allProjectIds = $responsibleProjects->merge($involvedProjects)
-                                           ->merge($eventProjects)
-                                           ->unique();
-
-        return Project::whereIn('id', $allProjectIds)->get();
+        return $this->role === 'technicien';
     }
 
-    /**
-     * Vérifier la disponibilité à une date donnée
-     */
-    public function isAvailableAt(Carbon $dateTime): bool
+    public function isActive()
     {
-        return !$this->evenements()
-                    ->where('date_debut', '<=', $dateTime)
-                    ->where('date_fin', '>=', $dateTime)
-                    ->where('statut', '!=', 'annule')
-                    ->exists();
+        return $this->statut === 'actif';
     }
 
-    /**
-     * Obtenir les conflits d'emploi du temps
-     */
-    public function getScheduleConflicts(Carbon $startDate, Carbon $endDate)
+    // Méthodes métier
+    public function enregistrerConnexion()
     {
-        return $this->evenements()
-                    ->where(function($query) use ($startDate, $endDate) {
-                        $query->whereBetween('date_debut', [$startDate, $endDate])
-                              ->orWhereBetween('date_fin', [$startDate, $endDate])
-                              ->orWhere(function($q) use ($startDate, $endDate) {
-                                  $q->where('date_debut', '<=', $startDate)
-                                    ->where('date_fin', '>=', $endDate);
-                              });
+        $this->update([
+            'derniere_connexion' => now()
+        ]);
+
+        Journal::enregistrerConnexion($this->id);
+    }
+
+    public function creerNotification($titre, $message, $type = 'systeme')
+    {
+        return $this->notifications()->create([
+            'titre' => $titre,
+            'message' => $message,
+            'type' => $type,
+            'lue' => false,
+            'date_creation' => now()
+        ]);
+    }
+
+    public function getNotificationsNonLuesAttribute()
+    {
+        return $this->notifications()->where('lue', false)->orderBy('date_creation', 'desc');
+    }
+
+    public function getNombreNotificationsNonLuesAttribute()
+    {
+        return $this->getNotificationsNonLuesAttribute()->count();
+    }
+
+    public function marquerNotificationsCommeLues()
+    {
+        return $this->notifications()
+                    ->where('lue', false)
+                    ->update([
+                        'lue' => true,
+                        'date_lecture' => now()
+                    ]);
+    }
+
+    // Statistiques des tâches
+    public function getNombreTachesParStatutAttribute()
+    {
+        return [
+            'a_faire' => $this->taches()->where('statut', 'a_faire')->count(),
+            'en_cours' => $this->taches()->where('statut', 'en_cours')->count(),
+            'termine' => $this->taches()->where('statut', 'termine')->count()
+        ];
+    }
+
+    public function getTauxCompletionTaches()
+    {
+        $totalTaches = $this->taches()->count();
+        if ($totalTaches === 0) {
+            return 0;
+        }
+
+        $tachesTerminees = $this->taches()->where('statut', 'termine')->count();
+        return round(($tachesTerminees / $totalTaches) * 100, 1);
+    }
+
+    public function getTachesEnRetard()
+    {
+        return $this->taches()
+                    ->where('date_echeance', '<', Carbon::today())
+                    ->whereIn('statut', ['a_faire', 'en_cours']);
+    }
+
+    public function getNombreTachesEnRetardAttribute()
+    {
+        return $this->getTachesEnRetard()->count();
+    }
+
+    // Statistiques des projets
+    public function getNombreProjetsParStatutAttribute()
+    {
+        return [
+            'planifie' => $this->projetsResponsable()->where('statut', 'planifie')->count(),
+            'en_cours' => $this->projetsResponsable()->where('statut', 'en_cours')->count(),
+            'termine' => $this->projetsResponsable()->where('statut', 'termine')->count(),
+            'suspendu' => $this->projetsResponsable()->where('statut', 'suspendu')->count()
+        ];
+    }
+
+    public function getProjetsActifs()
+    {
+        return $this->projetsResponsable()
+                    ->whereIn('statut', ['planifie', 'en_cours'])
+                    ->orderBy('date_debut');
+    }
+
+    // Événements
+    public function getEvenementsAVenir()
+    {
+        return $this->participationsEvenements()
+                    ->whereHas('evenement', function($query) {
+                        $query->where('date_debut', '>', now())
+                              ->whereIn('statut', ['planifie', 'en_cours']);
                     })
-                    ->where('statut', '!=', 'annule')
-                    ->get();
+                    ->with('evenement')
+                    ->orderBy(function($query) {
+                        $query->select('date_debut')
+                              ->from('evenements')
+                              ->whereColumn('evenements.id', 'participants_evenements.id_evenement');
+                    });
+    }
+
+    public function getEvenementsDuJour()
+    {
+        return $this->participationsEvenements()
+                    ->whereHas('evenement', function($query) {
+                        $query->whereDate('date_debut', today());
+                    })
+                    ->with('evenement');
+    }
+
+    // Rapports
+    public function getRapportsDuMois()
+    {
+        return $this->rapports()
+                    ->whereMonth('date_creation', now()->month)
+                    ->whereYear('date_creation', now()->year);
+    }
+
+    public function getNombreRapportsDuMoisAttribute()
+    {
+        return $this->getRapportsDuMois()->count();
+    }
+
+    // Méthodes de performance
+    public function getStatistiquesPerformance()
+    {
+        return [
+            'taches_completees_mois' => $this->taches()
+                                            ->where('statut', 'termine')
+                                            ->whereMonth('date_modification', now()->month)
+                                            ->count(),
+            'taux_completion' => $this->getTauxCompletionTaches(),
+            'taches_en_retard' => $this->nombre_taches_en_retard,
+            'rapports_soumis_mois' => $this->nombre_rapports_du_mois,
+            'projets_actifs' => $this->getProjetsActifs()->count()
+        ];
+    }
+
+    // Méthodes statiques
+    public static function getUtilisateursActifs()
+    {
+        return static::where('statut', 'actif')->orderBy('nom');
+    }
+
+    public static function getTechniciens()
+    {
+        return static::where('role', 'technicien')
+                    ->where('statut', 'actif')
+                    ->orderBy('nom');
+    }
+
+    public static function getAdministrateurs()
+    {
+        return static::where('role', 'admin')
+                    ->where('statut', 'actif')
+                    ->orderBy('nom');
     }
 }

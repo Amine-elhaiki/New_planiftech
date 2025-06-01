@@ -11,9 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Enregistrer votre middleware personnalisé
+        // Enregistrer les middlewares personnalisés
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'active.user' => \App\Http\Middleware\ActiveUserMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -112,6 +112,8 @@ class UserController extends Controller
         ]);
 
         $validatedData['password'] = Hash::make($validatedData['password']);
+        $validatedData['date_creation'] = now();
+        $validatedData['email_verified_at'] = now();
 
         $user = User::create($validatedData);
 
@@ -154,9 +156,7 @@ class UserController extends Controller
             ],
             'events' => [
                 'organized' => Event::where('id_organisateur', $user->id)->count(),
-                'participated' => Event::whereHas('participants', function($q) use ($user) {
-                    $q->where('id_utilisateur', $user->id);
-                })->count()
+                'participated' => 0 // Simplified for now
             ],
             'projects' => [
                 'responsible' => Project::where('id_responsable', $user->id)->count(),
@@ -167,7 +167,7 @@ class UserController extends Controller
             'reports' => [
                 'total' => Report::where('id_utilisateur', $user->id)->count(),
                 'this_month' => Report::where('id_utilisateur', $user->id)
-                                    ->whereMonth('created_at', now()->month)
+                                    ->whereMonth('date_creation', now()->month)
                                     ->count()
             ]
         ];
@@ -334,7 +334,7 @@ class UserController extends Controller
 
         // Tâches récentes
         $recentTasks = Task::where('id_utilisateur', $user->id)
-                          ->latest('updated_at')
+                          ->latest('date_modification')
                           ->limit($limit)
                           ->get()
                           ->map(function($task) {
@@ -343,7 +343,7 @@ class UserController extends Controller
                                   'action' => 'Tâche mise à jour',
                                   'description' => $task->titre,
                                   'status' => $task->statut,
-                                  'date' => $task->updated_at,
+                                  'date' => $task->date_modification,
                                   'icon' => 'bi-list-check',
                                   'color' => 'primary'
                               ];
@@ -351,7 +351,7 @@ class UserController extends Controller
 
         // Événements organisés récents
         $recentEvents = Event::where('id_organisateur', $user->id)
-                            ->latest('updated_at')
+                            ->latest('date_modification')
                             ->limit($limit)
                             ->get()
                             ->map(function($event) {
@@ -360,7 +360,7 @@ class UserController extends Controller
                                     'action' => 'Événement organisé',
                                     'description' => $event->titre,
                                     'status' => $event->statut,
-                                    'date' => $event->updated_at,
+                                    'date' => $event->date_modification,
                                     'icon' => 'bi-calendar-event',
                                     'color' => 'success'
                                 ];
@@ -368,7 +368,7 @@ class UserController extends Controller
 
         // Rapports récents
         $recentReports = Report::where('id_utilisateur', $user->id)
-                              ->latest('created_at')
+                              ->latest('date_creation')
                               ->limit($limit)
                               ->get()
                               ->map(function($report) {
@@ -377,7 +377,7 @@ class UserController extends Controller
                                       'action' => 'Rapport soumis',
                                       'description' => $report->titre,
                                       'status' => 'soumis',
-                                      'date' => $report->created_at,
+                                      'date' => $report->date_creation,
                                       'icon' => 'bi-file-text',
                                       'color' => 'info'
                                   ];

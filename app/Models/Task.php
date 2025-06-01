@@ -4,14 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
 class Task extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
-    protected $table = 'tasks';
+    protected $table = 'taches';
 
     protected $fillable = [
         'titre',
@@ -22,405 +21,282 @@ class Task extends Model
         'progression',
         'id_utilisateur',
         'id_projet',
-        'id_evenement',
+        'id_evenement'
     ];
 
     protected $casts = [
         'date_echeance' => 'date',
-        'progression' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'date_creation' => 'datetime',
+        'date_modification' => 'datetime',
+        'progression' => 'integer'
     ];
 
-    protected $dates = [
-        'date_echeance',
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ];
+    const UPDATED_AT = 'date_modification';
+    const CREATED_AT = 'date_creation';
 
-    // Constantes pour les priorités
-    const PRIORITE_BASSE = 'basse';
-    const PRIORITE_MOYENNE = 'moyenne';
-    const PRIORITE_HAUTE = 'haute';
-
-    // Constantes pour les statuts
-    const STATUT_A_FAIRE = 'a_faire';
-    const STATUT_EN_COURS = 'en_cours';
-    const STATUT_TERMINE = 'termine';
-
-    /**
-     * Relation avec l'utilisateur assigné
-     */
+    // Relations
     public function utilisateur()
     {
         return $this->belongsTo(User::class, 'id_utilisateur');
     }
 
-    /**
-     * Relation avec le projet
-     */
     public function projet()
     {
         return $this->belongsTo(Project::class, 'id_projet');
     }
 
-    /**
-     * Relation avec l'événement
-     */
     public function evenement()
     {
         return $this->belongsTo(Event::class, 'id_evenement');
     }
 
-    /**
-     * Relation avec les rapports
-     */
     public function rapports()
     {
         return $this->hasMany(Report::class, 'id_tache');
     }
 
-    /**
-     * Vérifier si la tâche est en retard
-     */
-    public function isOverdue(): bool
+    // Scopes
+    public function scopeAFaire($query)
     {
-        return $this->date_echeance < Carbon::today() &&
-               in_array($this->statut, [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
+        return $query->where('statut', 'a_faire');
     }
 
-    /**
-     * Vérifier si la tâche est due aujourd'hui
-     */
-    public function isDueToday(): bool
+    public function scopeEnCours($query)
     {
-        return $this->date_echeance->isToday() &&
-               in_array($this->statut, [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
+        return $query->where('statut', 'en_cours');
     }
 
-    /**
-     * Vérifier si la tâche est due cette semaine
-     */
-    public function isDueThisWeek(): bool
+    public function scopeTerminees($query)
     {
-        return $this->date_echeance->isBetween(Carbon::now(), Carbon::now()->endOfWeek()) &&
-               in_array($this->statut, [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
+        return $query->where('statut', 'termine');
     }
 
-    /**
-     * Vérifier si la tâche est terminée
-     */
-    public function isCompleted(): bool
-    {
-        return $this->statut === self::STATUT_TERMINE;
-    }
-
-    /**
-     * Vérifier si la tâche est active
-     */
-    public function isActive(): bool
-    {
-        return in_array($this->statut, [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
-    }
-
-    /**
-     * Obtenir la couleur de la priorité
-     */
-    public function getPriorityColorAttribute(): string
-    {
-        return match($this->priorite) {
-            self::PRIORITE_HAUTE => 'danger',
-            self::PRIORITE_MOYENNE => 'warning',
-            self::PRIORITE_BASSE => 'success',
-            default => 'secondary'
-        };
-    }
-
-    /**
-     * Obtenir la couleur du statut
-     */
-    public function getStatusColorAttribute(): string
-    {
-        return match($this->statut) {
-            self::STATUT_A_FAIRE => 'secondary',
-            self::STATUT_EN_COURS => 'primary',
-            self::STATUT_TERMINE => 'success',
-            default => 'secondary'
-        };
-    }
-
-    /**
-     * Obtenir le libellé formaté de la priorité
-     */
-    public function getPriorityLabelAttribute(): string
-    {
-        return match($this->priorite) {
-            self::PRIORITE_HAUTE => 'Haute',
-            self::PRIORITE_MOYENNE => 'Moyenne',
-            self::PRIORITE_BASSE => 'Basse',
-            default => ucfirst($this->priorite)
-        };
-    }
-
-    /**
-     * Obtenir le libellé formaté du statut
-     */
-    public function getStatusLabelAttribute(): string
-    {
-        return match($this->statut) {
-            self::STATUT_A_FAIRE => 'À faire',
-            self::STATUT_EN_COURS => 'En cours',
-            self::STATUT_TERMINE => 'Terminé',
-            default => ucfirst(str_replace('_', ' ', $this->statut))
-        };
-    }
-
-    /**
-     * Obtenir le nombre de jours restants
-     */
-    public function getDaysRemainingAttribute(): int
-    {
-        if ($this->isCompleted()) {
-            return 0;
-        }
-
-        return max(0, Carbon::today()->diffInDays($this->date_echeance, false));
-    }
-
-    /**
-     * Obtenir le texte de l'échéance
-     */
-    public function getDueDateTextAttribute(): string
-    {
-        if ($this->isCompleted()) {
-            return 'Terminé';
-        }
-
-        if ($this->isOverdue()) {
-            $days = Carbon::today()->diffInDays($this->date_echeance);
-            return "En retard de {$days} jour" . ($days > 1 ? 's' : '');
-        }
-
-        if ($this->isDueToday()) {
-            return 'Échéance aujourd\'hui';
-        }
-
-        $days = $this->days_remaining;
-        if ($days === 0) {
-            return 'Échéance aujourd\'hui';
-        } elseif ($days === 1) {
-            return 'Échéance demain';
-        } else {
-            return "Échéance dans {$days} jours";
-        }
-    }
-
-    /**
-     * Scope pour les tâches en retard
-     */
-    public function scopeOverdue($query)
+    public function scopeEnRetard($query)
     {
         return $query->where('date_echeance', '<', Carbon::today())
-                    ->whereIn('statut', [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
+                    ->whereIn('statut', ['a_faire', 'en_cours']);
     }
 
-    /**
-     * Scope pour les tâches due aujourd'hui
-     */
-    public function scopeDueToday($query)
+    public function scopePrioritaires($query)
     {
-        return $query->whereDate('date_echeance', Carbon::today())
-                    ->whereIn('statut', [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
+        return $query->where('priorite', 'haute');
     }
 
-    /**
-     * Scope pour les tâches de cette semaine
-     */
-    public function scopeDueThisWeek($query)
+    public function scopeUrgentes($query)
     {
-        return $query->whereBetween('date_echeance', [Carbon::now(), Carbon::now()->endOfWeek()])
-                    ->whereIn('statut', [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
+        return $query->where('priorite', 'haute')
+                    ->where('date_echeance', '<=', Carbon::today()->addDays(3));
     }
 
-    /**
-     * Scope pour les tâches actives
-     */
-    public function scopeActive($query)
-    {
-        return $query->whereIn('statut', [self::STATUT_A_FAIRE, self::STATUT_EN_COURS]);
-    }
-
-    /**
-     * Scope pour les tâches terminées
-     */
-    public function scopeCompleted($query)
-    {
-        return $query->where('statut', self::STATUT_TERMINE);
-    }
-
-    /**
-     * Scope pour les tâches d'un utilisateur
-     */
-    public function scopeForUser($query, $userId)
+    public function scopeParUtilisateur($query, $userId)
     {
         return $query->where('id_utilisateur', $userId);
     }
 
-    /**
-     * Scope pour les tâches d'un projet
-     */
-    public function scopeForProject($query, $projectId)
+    public function scopeParProjet($query, $projetId)
     {
-        return $query->where('id_projet', $projectId);
+        return $query->where('id_projet', $projetId);
     }
 
-    /**
-     * Scope par priorité
-     */
-    public function scopeWithPriority($query, $priority)
+    // Accessors
+    public function getStatutColorAttribute()
     {
-        return $query->where('priorite', $priority);
+        if ($this->estEnRetard()) {
+            return 'danger';
+        }
+
+        return match($this->statut) {
+            'a_faire' => 'secondary',
+            'en_cours' => 'warning',
+            'termine' => 'success',
+            default => 'secondary'
+        };
     }
 
-    /**
-     * Scope par statut
-     */
-    public function scopeWithStatus($query, $status)
+    public function getPrioriteColorAttribute()
     {
-        return $query->where('statut', $status);
+        return match($this->priorite) {
+            'basse' => 'success',
+            'moyenne' => 'warning',
+            'haute' => 'danger',
+            default => 'secondary'
+        };
     }
 
-    /**
-     * Marquer la tâche comme terminée
-     */
-    public function markAsCompleted(): bool
+    public function getProgressionBarColorAttribute()
     {
-        return $this->update([
-            'statut' => self::STATUT_TERMINE,
+        if ($this->progression >= 100) {
+            return 'success';
+        } elseif ($this->progression >= 50) {
+            return 'warning';
+        } else {
+            return 'info';
+        }
+    }
+
+    public function getJoursRestantsAttribute()
+    {
+        if ($this->statut === 'termine') {
+            return 0;
+        }
+
+        $jours = Carbon::today()->diffInDays($this->date_echeance, false);
+        return max($jours, 0);
+    }
+
+    public function getJoursRestantsTexteAttribute()
+    {
+        $jours = $this->jours_restants;
+
+        if ($this->statut === 'termine') {
+            return 'Terminée';
+        }
+
+        if ($jours < 0) {
+            return 'En retard de ' . abs($jours) . ' jour(s)';
+        } elseif ($jours == 0) {
+            return 'Aujourd\'hui';
+        } elseif ($jours == 1) {
+            return 'Demain';
+        } else {
+            return $jours . ' jour(s) restant(s)';
+        }
+    }
+
+    // Méthodes métier
+    public function estEnRetard()
+    {
+        return $this->date_echeance < Carbon::today() &&
+               !in_array($this->statut, ['termine']);
+    }
+
+    public function estUrgente()
+    {
+        return $this->priorite === 'haute' ||
+               ($this->date_echeance <= Carbon::today()->addDays(3) &&
+                !in_array($this->statut, ['termine']));
+    }
+
+    public function estAujourdhui()
+    {
+        return $this->date_echeance->isToday();
+    }
+
+    public function estDemain()
+    {
+        return $this->date_echeance->isTomorrow();
+    }
+
+    public function estCetteSemaine()
+    {
+        return $this->date_echeance->isCurrentWeek();
+    }
+
+    public function peutEtreModifieePar($user)
+    {
+        return $user->isAdmin() || $this->id_utilisateur == $user->id;
+    }
+
+    public function marquerCommeTerminee()
+    {
+        $this->update([
+            'statut' => 'termine',
             'progression' => 100
         ]);
     }
 
-    /**
-     * Marquer la tâche comme en cours
-     */
-    public function markAsInProgress(): bool
+    public function commencer()
     {
-        return $this->update([
-            'statut' => self::STATUT_EN_COURS,
-            'progression' => $this->progression > 0 ? $this->progression : 10
-        ]);
+        if ($this->statut === 'a_faire') {
+            $this->update([
+                'statut' => 'en_cours',
+                'progression' => max($this->progression, 10)
+            ]);
+        }
     }
 
-    /**
-     * Réinitialiser la tâche
-     */
-    public function markAsTodo(): bool
+    public function mettreAJourProgression($progression)
     {
-        return $this->update([
-            'statut' => self::STATUT_A_FAIRE,
-            'progression' => 0
-        ]);
-    }
+        $progression = max(0, min(100, $progression));
 
-    /**
-     * Mettre à jour la progression
-     */
-    public function updateProgress(int $progress): bool
-    {
-        $progress = max(0, min(100, $progress));
-
-        $newStatus = match(true) {
-            $progress === 0 => self::STATUT_A_FAIRE,
-            $progress === 100 => self::STATUT_TERMINE,
-            default => self::STATUT_EN_COURS
-        };
-
-        return $this->update([
-            'progression' => $progress,
-            'statut' => $newStatus
-        ]);
-    }
-
-    /**
-     * Obtenir les tâches similaires
-     */
-    public function getSimilarTasks($limit = 5)
-    {
-        return self::where('id', '!=', $this->id)
-                  ->where(function($query) {
-                      if ($this->id_projet) {
-                          $query->where('id_projet', $this->id_projet);
-                      }
-
-                      $query->orWhere('id_utilisateur', $this->id_utilisateur)
-                            ->orWhere('priorite', $this->priorite);
-                  })
-                  ->limit($limit)
-                  ->get();
-    }
-
-    /**
-     * Vérifier si la tâche a des rapports
-     */
-    public function hasReports(): bool
-    {
-        return $this->rapports()->exists();
-    }
-
-    /**
-     * Obtenir le rapport le plus récent
-     */
-    public function getLatestReport()
-    {
-        return $this->rapports()->latest()->first();
-    }
-
-    /**
-     * Calculer le temps estimé restant basé sur la progression
-     */
-    public function getEstimatedTimeRemaining(): array
-    {
-        if ($this->isCompleted()) {
-            return ['days' => 0, 'text' => 'Terminé'];
+        $statut = $this->statut;
+        if ($progression >= 100) {
+            $statut = 'termine';
+        } elseif ($progression > 0 && $this->statut === 'a_faire') {
+            $statut = 'en_cours';
         }
 
-        $totalDays = Carbon::now()->diffInDays($this->date_echeance);
-        $remainingProgress = 100 - $this->progression;
+        $this->update([
+            'progression' => $progression,
+            'statut' => $statut
+        ]);
+    }
 
-        if ($this->progression > 0) {
-            $estimatedDays = round(($remainingProgress / $this->progression) * $totalDays);
-        } else {
-            $estimatedDays = $totalDays;
-        }
+    public function attribuer($userId)
+    {
+        $this->update(['id_utilisateur' => $userId]);
+    }
 
+    public function lierAuProjet($projetId)
+    {
+        $this->update(['id_projet' => $projetId]);
+    }
+
+    public function lierAEvenement($evenementId)
+    {
+        $this->update(['id_evenement' => $evenementId]);
+    }
+
+    // Méthodes statiques
+    public static function getPrioritesDisponibles()
+    {
         return [
-            'days' => max(0, $estimatedDays),
-            'text' => $estimatedDays > 0 ? "Environ {$estimatedDays} jour(s)" : 'Bientôt terminé'
+            'basse' => 'Basse',
+            'moyenne' => 'Moyenne',
+            'haute' => 'Haute'
         ];
     }
 
-    /**
-     * Boot method pour les événements du modèle
-     */
-    protected static function boot()
+    public static function getStatutsDisponibles()
     {
-        parent::boot();
+        return [
+            'a_faire' => 'À faire',
+            'en_cours' => 'En cours',
+            'termine' => 'Terminé'
+        ];
+    }
 
-        static::updating(function ($task) {
-            // Ajuster automatiquement la progression selon le statut
-            if ($task->isDirty('statut')) {
-                switch ($task->statut) {
-                    case self::STATUT_A_FAIRE:
-                        $task->progression = 0;
-                        break;
-                    case self::STATUT_TERMINE:
-                        $task->progression = 100;
-                        break;
-                }
-            }
-        });
+    public static function getTachesEnRetard()
+    {
+        return static::enRetard()->with(['utilisateur', 'projet'])->get();
+    }
+
+    public static function getTachesDuJour()
+    {
+        return static::whereDate('date_echeance', Carbon::today())
+                    ->whereIn('statut', ['a_faire', 'en_cours'])
+                    ->with(['utilisateur', 'projet'])
+                    ->orderBy('priorite', 'desc')
+                    ->get();
+    }
+
+    public static function getTachesUrgentes()
+    {
+        return static::urgentes()
+                    ->with(['utilisateur', 'projet'])
+                    ->orderBy('date_echeance')
+                    ->get();
+    }
+
+    public static function getStatistiquesGlobales()
+    {
+        return [
+            'total' => static::count(),
+            'a_faire' => static::where('statut', 'a_faire')->count(),
+            'en_cours' => static::where('statut', 'en_cours')->count(),
+            'terminees' => static::where('statut', 'termine')->count(),
+            'en_retard' => static::enRetard()->count(),
+            'urgentes' => static::urgentes()->count()
+        ];
     }
 }

@@ -10,8 +10,8 @@ use App\Models\Report;
 use App\Models\Task;
 use App\Models\Event;
 use App\Models\PieceJointe;
+use App\Models\User;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -69,7 +69,7 @@ class ReportController extends Controller
         $interventionTypes = Report::distinct()->pluck('type_intervention')->filter();
 
         // Données pour les filtres
-        $users = Auth::user()->role === 'admin' ? \App\Models\User::where('statut', 'actif')->get() : collect();
+        $users = Auth::user()->role === 'admin' ? User::where('statut', 'actif')->get() : collect();
 
         return view('reports.index', compact('reports', 'interventionTypes', 'users'));
     }
@@ -100,8 +100,8 @@ class ReportController extends Controller
             'resultats' => 'required|string',
             'problemes' => 'nullable|string',
             'recommandations' => 'nullable|string',
-            'id_tache' => 'nullable|exists:tasks,id',
-            'id_evenement' => 'nullable|exists:events,id',
+            'id_tache' => 'nullable|exists:taches,id',
+            'id_evenement' => 'nullable|exists:evenements,id',
             'pieces_jointes.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120' // 5MB max
         ], [
             'titre.required' => 'Le titre est obligatoire.',
@@ -127,7 +127,7 @@ class ReportController extends Controller
             $event = Event::findOrFail($validatedData['id_evenement']);
             if (Auth::user()->role !== 'admin' &&
                 $event->id_organisateur !== Auth::id() &&
-                !$event->participants->contains('id', Auth::id())) {
+                !$event->participants->contains('id_utilisateur', Auth::id())) {
                 abort(403, 'Vous ne pouvez créer un rapport que pour vos propres événements.');
             }
         }
@@ -192,7 +192,7 @@ class ReportController extends Controller
         }
 
         // Empêcher la modification des rapports anciens (plus de 48h)
-        if ($report->created_at->diffInHours(now()) > 48 && Auth::user()->role !== 'admin') {
+        if ($report->date_creation->diffInHours(now()) > 48 && Auth::user()->role !== 'admin') {
             abort(403, 'Vous ne pouvez modifier un rapport que dans les 48h suivant sa création.');
         }
 
@@ -217,7 +217,7 @@ class ReportController extends Controller
         }
 
         // Empêcher la modification des rapports anciens
-        if ($report->created_at->diffInHours(now()) > 48 && Auth::user()->role !== 'admin') {
+        if ($report->date_creation->diffInHours(now()) > 48 && Auth::user()->role !== 'admin') {
             abort(403, 'Vous ne pouvez modifier un rapport que dans les 48h suivant sa création.');
         }
 
@@ -230,8 +230,8 @@ class ReportController extends Controller
             'resultats' => 'required|string',
             'problemes' => 'nullable|string',
             'recommandations' => 'nullable|string',
-            'id_tache' => 'nullable|exists:tasks,id',
-            'id_evenement' => 'nullable|exists:events,id',
+            'id_tache' => 'nullable|exists:taches,id',
+            'id_evenement' => 'nullable|exists:evenements,id',
             'pieces_jointes.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120'
         ]);
 
@@ -353,17 +353,22 @@ class ReportController extends Controller
 
         $report->load(['utilisateur', 'tache.projet', 'evenement', 'piecesJointes']);
 
-        $pdf = Pdf::loadView('reports.pdf', compact('report'));
+        // Générer le contenu HTML pour le PDF
+        $html = view('reports.pdf', compact('report'))->render();
 
-        $filename = 'rapport_' . $report->id . '_' . Carbon::now()->format('Y-m-d') . '.pdf';
+        // Pour cette version, nous retournons le HTML
+        // Dans un vrai projet, vous utiliseriez une bibliothèque PDF comme dompdf
+        $filename = 'rapport_' . $report->id . '_' . Carbon::now()->format('Y-m-d') . '.html';
 
-        return $pdf->download($filename);
+        return response($html)
+            ->header('Content-Type', 'text/html')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
     /**
-     * Exporter plusieurs rapports en PDF
+     * Exporter plusieurs rapports
      */
-    public function exportMultiplePdf(Request $request)
+    public function exportMultiple(Request $request)
     {
         $reportIds = $request->input('report_ids', []);
 
@@ -385,11 +390,14 @@ class ReportController extends Controller
             return back()->withErrors(['error' => 'Aucun rapport trouvé ou autorisé.']);
         }
 
-        $pdf = Pdf::loadView('reports.multiple-pdf', compact('reports'));
+        // Générer le contenu HTML pour les rapports multiples
+        $html = view('reports.multiple-pdf', compact('reports'))->render();
 
-        $filename = 'rapports_' . Carbon::now()->format('Y-m-d_H-i-s') . '.pdf';
+        $filename = 'rapports_' . Carbon::now()->format('Y-m-d_H-i-s') . '.html';
 
-        return $pdf->download($filename);
+        return response($html)
+            ->header('Content-Type', 'text/html')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
     /**
