@@ -366,3 +366,24 @@ Route::middleware(['auth'])->group(function () {
          ->middleware('role:technicien')
          ->name('technicien.dashboard');
 });
+
+
+Route::middleware(['auth'])->group(function () {
+
+    // Routes principales pour les événements
+    Route::resource('events', EventController::class);
+
+    // Routes spécifiques pour les événements
+    Route::get('/events/calendar/data', [EventController::class, 'calendar'])->name('events.calendar');
+    Route::post('/events/{event}/participation', [EventController::class, 'updateParticipation'])->name('events.updateParticipation');
+    Route::post('/events/{event}/complete', [EventController::class, 'markCompleted'])->name('events.markCompleted');
+    Route::post('/events/{event}/cancel', [EventController::class, 'cancel'])->name('events.cancel');
+    Route::post('/events/{event}/postpone', [EventController::class, 'postpone'])->name('events.postpone');
+    Route::get('/events/{event}/duplicate', [EventController::class, 'duplicate'])->name('events.duplicate');
+    Route::get('/events/export/csv', [EventController::class, 'export'])->name('events.export');
+
+    // Routes pour les vues spécifiques
+    Route::get('/events-calendar', function() {
+        return view('events.calendar');
+    })->name('events.calendar.view');
+});

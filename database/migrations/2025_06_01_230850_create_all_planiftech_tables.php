@@ -29,24 +29,28 @@ return new class extends Migration
         });
 
         // 2. Table des événements
-        Schema::create('evenements', function (Blueprint $table) {
+         Schema::create('events', function (Blueprint $table) {
             $table->id();
-            $table->string('titre', 100);
+            $table->string('titre', 255);
             $table->text('description');
             $table->enum('type', ['intervention', 'reunion', 'formation', 'visite']);
-            $table->datetime('date_debut');
-            $table->datetime('date_fin');
-            $table->string('lieu', 100);
-            $table->string('coordonnees_gps', 50)->nullable();
+            $table->dateTime('date_debut');
+            $table->dateTime('date_fin');
+            $table->string('lieu', 255);
+            $table->string('coordonnees_gps', 100)->nullable();
             $table->enum('statut', ['planifie', 'en_cours', 'termine', 'annule', 'reporte'])->default('planifie');
             $table->enum('priorite', ['normale', 'haute', 'urgente'])->default('normale');
-            $table->foreignId('id_organisateur')->constrained('users')->onDelete('restrict');
-            $table->foreignId('id_projet')->nullable()->constrained('projets')->onDelete('set null');
-            $table->timestamp('date_creation')->default(now());
-            $table->timestamp('date_modification')->nullable();
+            $table->foreignId('id_organisateur')->constrained('users')->onDelete('cascade');
+            $table->foreignId('id_projet')->nullable()->constrained('projects')->onDelete('set null');
+            $table->timestamp('date_creation')->useCurrent();
+            $table->timestamp('date_modification')->useCurrent()->useCurrentOnUpdate();
+            $table->timestamps();
 
+            // Index pour améliorer les performances
+            $table->index(['date_debut', 'date_fin']);
             $table->index(['type', 'statut']);
-            $table->index('date_debut');
+            $table->index(['id_organisateur']);
+            $table->index(['priorite']);
         });
 
         // 3. Table des tâches
@@ -70,14 +74,19 @@ return new class extends Migration
         });
 
         // 4. Table des participants aux événements
-        Schema::create('participants_evenements', function (Blueprint $table) {
+        Schema::create('participant_events', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_evenement')->constrained('evenements')->onDelete('cascade');
+            $table->foreignId('id_evenement')->constrained('events')->onDelete('cascade');
             $table->foreignId('id_utilisateur')->constrained('users')->onDelete('cascade');
             $table->enum('statut_presence', ['invite', 'confirme', 'decline', 'present', 'absent'])->default('invite');
+            $table->timestamps();
 
+            // Contrainte d'unicité pour éviter les doublons
             $table->unique(['id_evenement', 'id_utilisateur']);
-            $table->index('statut_presence');
+
+            // Index pour améliorer les performances
+            $table->index(['id_evenement', 'statut_presence']);
+            $table->index(['id_utilisateur']);
         });
 
         // 5. Table des rapports

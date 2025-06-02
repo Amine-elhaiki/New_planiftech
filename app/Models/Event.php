@@ -23,99 +23,136 @@ class Event extends Model
         'statut',
         'priorite',
         'id_organisateur',
-        'id_projet'
+        'id_projet',
+        'date_creation',
+        'date_modification'
+    ];
+
+    protected $dates = [
+        'date_debut',
+        'date_fin',
+        'date_creation',
+        'date_modification',
+        'created_at',
+        'updated_at'
     ];
 
     protected $casts = [
         'date_debut' => 'datetime',
         'date_fin' => 'datetime',
         'date_creation' => 'datetime',
-        'date_modification' => 'datetime'
+        'date_modification' => 'datetime',
     ];
 
-    const UPDATED_AT = 'date_modification';
-    const CREATED_AT = 'date_creation';
+    // Types d'événements autorisés
+    public static $types = [
+        'intervention' => 'Intervention Technique',
+        'reunion' => 'Réunion',
+        'formation' => 'Formation',
+        'visite' => 'Visite'
+    ];
 
-    // Relations
+    // Statuts autorisés
+    public static $statuts = [
+        'planifie' => 'Planifié',
+        'en_cours' => 'En cours',
+        'termine' => 'Terminé',
+        'annule' => 'Annulé',
+        'reporte' => 'Reporté'
+    ];
+
+    // Priorités autorisées
+    public static $priorites = [
+        'normale' => 'Normale',
+        'haute' => 'Haute',
+        'urgente' => 'Urgente'
+    ];
+
+    /**
+     * Relation avec l'organisateur (User)
+     */
     public function organisateur()
     {
         return $this->belongsTo(User::class, 'id_organisateur');
     }
 
+    /**
+     * Relation avec le projet
+     */
     public function projet()
     {
         return $this->belongsTo(Project::class, 'id_projet');
     }
 
+    /**
+     * Relation avec les participants (Many-to-Many)
+     */
     public function participants()
     {
         return $this->hasMany(ParticipantEvent::class, 'id_evenement');
     }
 
+    /**
+     * Relation avec les utilisateurs participants
+     */
+    public function utilisateursParticipants()
+    {
+        return $this->belongsToMany(User::class, 'participant_events', 'id_evenement', 'id_utilisateur')
+                    ->withPivot('statut_presence')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Relation avec les tâches associées
+     */
     public function taches()
     {
         return $this->hasMany(Task::class, 'id_evenement');
     }
 
+    /**
+     * Relation avec les rapports
+     */
     public function rapports()
     {
         return $this->hasMany(Report::class, 'id_evenement');
     }
 
-    // Scopes
-    public function scopePlanifies($query)
+    /**
+     * Mutateur pour la date de modification
+     */
+    public function setDateModificationAttribute($value)
     {
-        return $query->where('statut', 'planifie');
+        $this->attributes['date_modification'] = now();
     }
 
-    public function scopeEnCours($query)
+    /**
+     * Accesseur pour le nom du type
+     */
+    public function getTypeNomAttribute()
     {
-        return $query->where('statut', 'en_cours');
+        return self::$types[$this->type] ?? $this->type;
     }
 
-    public function scopeTermines($query)
+    /**
+     * Accesseur pour le nom du statut
+     */
+    public function getStatutNomAttribute()
     {
-        return $query->where('statut', 'termine');
+        return self::$statuts[$this->statut] ?? $this->statut;
     }
 
-    public function scopeAVenir($query)
+    /**
+     * Accesseur pour le nom de la priorité
+     */
+    public function getPrioriteNomAttribute()
     {
-        return $query->where('date_debut', '>', now());
+        return self::$priorites[$this->priorite] ?? $this->priorite;
     }
 
-    public function scopeAujourdhui($query)
-    {
-        return $query->whereDate('date_debut', today());
-    }
-
-    public function scopeParType($query, $type)
-    {
-        return $query->where('type', $type);
-    }
-
-    // Accessors & Mutators
-    public function getStatutColorAttribute()
-    {
-        return match($this->statut) {
-            'planifie' => 'primary',
-            'en_cours' => 'warning',
-            'termine' => 'success',
-            'annule' => 'danger',
-            'reporte' => 'secondary',
-            default => 'secondary'
-        };
-    }
-
-    public function getPrioriteColorAttribute()
-    {
-        return match($this->priorite) {
-            'normale' => 'success',
-            'haute' => 'warning',
-            'urgente' => 'danger',
-            default => 'secondary'
-        };
-    }
-
+    /**
+     * Accesseur pour la durée de l'événement
+     */
     public function getDureeAttribute()
     {
         if ($this->date_debut && $this->date_fin) {
@@ -124,158 +161,162 @@ class Event extends Model
         return 0;
     }
 
-    public function getDureeFormatteeAttribute()
+    /**
+     * Accesseur pour savoir si l'événement est passé
+     */
+    public function getEstPasseAttribute()
     {
-        $duree = $this->duree;
+        return $this->date_fin < now();
+    }
 
-        if ($duree >= 60) {
-            $heures = intval($duree / 60);
-            $minutes = $duree % 60;
-            return $heures . 'h' . ($minutes > 0 ? ' ' . $minutes . 'min' : '');
+    /**
+     * Accesseur pour savoir si l'événement est en cours
+     */
+    public function getEstEnCoursAttribute()
+    {
+        return $this->date_debut <= now() && $this->date_fin >= now();
+    }
+
+    /**
+     * Accesseur pour savoir si l'événement est futur
+     */
+    public function getEstFuturAttribute()
+    {
+        return $this->date_debut > now();
+    }
+
+    /**
+     * Accesseur pour la couleur selon le type
+     */
+    public function getCouleurAttribute()
+    {
+        $couleurs = [
+            'intervention' => '#dc3545',
+            'reunion' => '#007bff',
+            'formation' => '#28a745',
+            'visite' => '#fd7e14'
+        ];
+
+        return $couleurs[$this->type] ?? '#6c757d';
+    }
+
+    /**
+     * Accesseur pour la classe CSS de priorité
+     */
+    public function getClassePrioriteAttribute()
+    {
+        $classes = [
+            'normale' => 'border-secondary',
+            'haute' => 'border-warning',
+            'urgente' => 'border-danger'
+        ];
+
+        return $classes[$this->priorite] ?? 'border-secondary';
+    }
+
+    /**
+     * Scope pour filtrer par type
+     */
+    public function scopeParType($query, $type)
+    {
+        if ($type) {
+            return $query->where('type', $type);
         }
-
-        return $duree . 'min';
+        return $query;
     }
 
-    // Méthodes métier
-    public function ajouterParticipant($userId, $statut = 'invite')
+    /**
+     * Scope pour filtrer par statut
+     */
+    public function scopeParStatut($query, $statut)
     {
-        return ParticipantEvent::updateOrCreate(
-            [
-                'id_evenement' => $this->id,
-                'id_utilisateur' => $userId
-            ],
-            [
-                'statut_presence' => $statut
-            ]
-        );
+        if ($statut) {
+            return $query->where('statut', $statut);
+        }
+        return $query;
     }
 
-    public function retirerParticipant($userId)
+    /**
+     * Scope pour filtrer par priorité
+     */
+    public function scopeParPriorite($query, $priorite)
     {
-        return ParticipantEvent::where('id_evenement', $this->id)
-                              ->where('id_utilisateur', $userId)
-                              ->delete();
+        if ($priorite) {
+            return $query->where('priorite', $priorite);
+        }
+        return $query;
     }
 
-    public function getNombreParticipantsAttribute()
+    /**
+     * Scope pour filtrer par période
+     */
+    public function scopeParPeriode($query, $dateDebut, $dateFin)
     {
-        return $this->participants()->count();
+        if ($dateDebut && $dateFin) {
+            return $query->whereBetween('date_debut', [$dateDebut, $dateFin]);
+        }
+        return $query;
     }
 
+    /**
+     * Scope pour les événements d'aujourd'hui
+     */
+    public function scopeAujourdhui($query)
+    {
+        return $query->whereDate('date_debut', today());
+    }
+
+    /**
+     * Scope pour les événements de cette semaine
+     */
+    public function scopeCetteSemaine($query)
+    {
+        return $query->whereBetween('date_debut', [
+            now()->startOfWeek(),
+            now()->endOfWeek()
+        ]);
+    }
+
+    /**
+     * Scope pour les événements urgents
+     */
+    public function scopeUrgents($query)
+    {
+        return $query->where('priorite', 'urgente');
+    }
+
+    /**
+     * Obtenir le nombre de participants confirmés
+     */
     public function getNombreParticipantsConfirmesAttribute()
     {
         return $this->participants()->where('statut_presence', 'confirme')->count();
     }
 
-    public function estOrganisateurOuParticipant($userId)
+    /**
+     * Vérifier si un utilisateur participe à l'événement
+     */
+    public function utilisateurParticipe($userId)
     {
-        return $this->id_organisateur == $userId ||
-               $this->participants()->where('id_utilisateur', $userId)->exists();
+        return $this->participants()->where('id_utilisateur', $userId)->exists();
     }
 
-    public function peutEtreModifiePar($user)
+    /**
+     * Ajouter un participant
+     */
+    public function ajouterParticipant($userId, $statutPresence = 'invite')
     {
-        return $user->isAdmin() || $this->id_organisateur == $user->id;
+        return $this->participants()->updateOrCreate(
+            ['id_utilisateur' => $userId],
+            ['statut_presence' => $statutPresence]
+        );
     }
 
-    public function estEnRetard()
+    /**
+     * Supprimer un participant
+     */
+    public function supprimerParticipant($userId)
     {
-        return $this->date_debut < now() && !in_array($this->statut, ['termine', 'annule']);
-    }
-
-    public function estAujourdhui()
-    {
-        return $this->date_debut->isToday();
-    }
-
-    public function estDemain()
-    {
-        return $this->date_debut->isTomorrow();
-    }
-
-    public function estCetteSemaine()
-    {
-        return $this->date_debut->isCurrentWeek();
-    }
-
-    public function marquerCommeTermine()
-    {
-        $this->update(['statut' => 'termine']);
-
-        // Marquer automatiquement les participants comme présents s'ils étaient confirmés
-        $this->participants()
-             ->where('statut_presence', 'confirme')
-             ->update(['statut_presence' => 'present']);
-    }
-
-    public function annuler()
-    {
-        $this->update(['statut' => 'annule']);
-    }
-
-    public function reporter($nouvelleDateDebut, $nouvelleDateFin)
-    {
-        $this->update([
-            'date_debut' => $nouvelleDateDebut,
-            'date_fin' => $nouvelleDateFin,
-            'statut' => 'reporte'
-        ]);
-    }
-
-    // Méthodes statiques
-    public static function getTypesDisponibles()
-    {
-        return [
-            'intervention' => 'Intervention technique',
-            'reunion' => 'Réunion',
-            'formation' => 'Formation',
-            'visite' => 'Visite'
-        ];
-    }
-
-    public static function getStatutsDisponibles()
-    {
-        return [
-            'planifie' => 'Planifié',
-            'en_cours' => 'En cours',
-            'termine' => 'Terminé',
-            'annule' => 'Annulé',
-            'reporte' => 'Reporté'
-        ];
-    }
-
-    public static function getPrioritesDisponibles()
-    {
-        return [
-            'normale' => 'Normale',
-            'haute' => 'Haute',
-            'urgente' => 'Urgente'
-        ];
-    }
-
-    public static function getEvenementsDuJour()
-    {
-        return static::whereDate('date_debut', today())
-                    ->orderBy('date_debut')
-                    ->get();
-    }
-
-    public static function getEvenementsDeLaSemaine()
-    {
-        return static::whereBetween('date_debut', [
-                        now()->startOfWeek(),
-                        now()->endOfWeek()
-                    ])
-                    ->orderBy('date_debut')
-                    ->get();
-    }
-
-    public static function getEvenementsAVenir($limit = 10)
-    {
-        return static::where('date_debut', '>', now())
-                    ->orderBy('date_debut')
-                    ->limit($limit)
-                    ->get();
+        return $this->participants()->where('id_utilisateur', $userId)->delete();
     }
 }

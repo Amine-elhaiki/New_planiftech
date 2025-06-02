@@ -23,7 +23,7 @@ class EventController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Event::with(['organisateur', 'participants', 'projet']);
+        $query = Event::with(['organisateur', 'participants.utilisateur', 'projet']);
 
         // Filtrage selon le rôle
         if (Auth::user()->role !== 'admin') {
@@ -73,11 +73,14 @@ class EventController extends Controller
             $events = $query->get();
         }
 
+        // Statistiques pour le dashboard
+        $stats = $this->getEventStats();
+
         // Données pour les filtres
         $users = User::where('statut', 'actif')->get();
         $projects = Project::where('statut', '!=', 'termine')->get();
 
-        return view('events.index', compact('events', 'users', 'projects', 'view'));
+        return view('events.index', compact('events', 'users', 'projects', 'view', 'stats'));
     }
 
     /**
@@ -167,7 +170,7 @@ class EventController extends Controller
         // Vérifier les permissions
         if (Auth::user()->role !== 'admin' &&
             $event->id_organisateur !== Auth::id() &&
-            !$event->participants->contains('id', Auth::id())) {
+            !$event->participants->contains('id_utilisateur', Auth::id())) {
             abort(403, 'Vous ne pouvez voir que vos propres événements.');
         }
 
@@ -410,5 +413,136 @@ class EventController extends Controller
         ]);
 
         return back()->with('success', 'Événement reporté avec succès.');
+    }
+
+    /**
+     * Obtenir les statistiques des événements
+     */
+    private function getEventStats()
+    {
+        $query = Event::query();
+
+        if (Auth::user()->role !== 'admin') {
+            $query->where(function($q) {
+                $q->where('id_organisateur', Auth::id())
+                  ->orWhereHas('participants', function($participantQuery) {
+                      $participantQuery->where('id_utilisateur', Auth::id());
+                  });
+            });
+        }
+
+        return [
+            'total' => $query->count(),
+            'aujourd_hui' => (clone $query)->whereDate('date_debut', today())->count(),
+            'cette_semaine' => (clone $query)->whereBetween('date_debut', [
+                now()->startOfWeek(),
+                now()->endOfWeek()
+            ])->count(),
+            'ce_mois' => (clone $query)->whereMonth('date_debut', now()->month)->count(),
+            'planifies' => (clone $query)->where('statut', 'planifie')->count(),
+            'en_cours' => (clone $query)->where('statut', 'en_cours')->count(),
+            'termines' => (clone $query)->where('statut', 'termine')->count(),
+            'urgents' => (clone $query)->where('priorite', 'urgente')->count(),
+            'par_type' => (clone $query)->select('type', DB::raw('COUNT(*) as count'))
+                                       ->groupBy('type')
+                                       ->pluck('count', 'type')
+                                       ->toArray()
+        ];
+    }
+
+    /**
+     * Dupliquer un événement
+     */
+    public function duplicate(Event $event)
+    {
+        if (Auth::user()->role !== 'admin' && $event->id_organisateur !== Auth::id()) {
+            abort(403, 'Seuls l\'organisateur et les administrateurs peuvent dupliquer l\'événement.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Créer une copie de l'événement
+            $newEvent = $event->replicate();
+            $newEvent->titre = $event->titre . ' (Copie)';
+            $newEvent->statut = 'planifie';
+            $newEvent->date_debut = $event->date_debut->addWeek();
+            $newEvent->date_fin = $event->date_fin->addWeek();
+            $newEvent->save();
+
+            // Copier les participants
+            foreach ($event->participants as $participant) {
+                ParticipantEvent::create([
+                    'id_evenement' => $newEvent->id,
+                    'id_utilisateur' => $participant->id_utilisateur,
+                    'statut_presence' => 'invite'
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('events.edit', $newEvent)
+                            ->with('success', 'Événement dupliqué avec succès.');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->withErrors(['error' => 'Erreur lors de la duplication de l\'événement.']);
+        }
+    }
+
+    /**
+     * Export des événements
+     */
+    public function export(Request $request)
+    {
+        $query = Event::with(['organisateur', 'projet']);
+
+        if (Auth::user()->role !== 'admin') {
+            $query->where(function($q) {
+                $q->where('id_organisateur', Auth::id())
+                  ->orWhereHas('participants', function($participantQuery) {
+                      $participantQuery->where('id_utilisateur', Auth::id());
+                  });
+            });
+        }
+
+        // Appliquer les mêmes filtres que l'index
+        if ($request->filled('type')) {
+            $query->where('type', $request->input('type'));
+        }
+
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->input('statut'));
+        }
+
+        if ($request->filled('date_debut') && $request->filled('date_fin')) {
+            $query->whereBetween('date_debut', [
+                $request->input('date_debut'),
+                $request->input('date_fin') . ' 23:59:59'
+            ]);
+        }
+
+        $events = $query->orderBy('date_debut', 'asc')->get();
+
+        $csv = "Titre,Type,Date début,Date fin,Lieu,Statut,Priorité,Organisateur,Projet\n";
+
+        foreach ($events as $event) {
+            $csv .= sprintf(
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+                '"' . str_replace('"', '""', $event->titre) . '"',
+                $event->type_nom,
+                $event->date_debut->format('d/m/Y H:i'),
+                $event->date_fin->format('d/m/Y H:i'),
+                '"' . str_replace('"', '""', $event->lieu) . '"',
+                $event->statut_nom,
+                $event->priorite_nom,
+                $event->organisateur->prenom . ' ' . $event->organisateur->nom,
+                $event->projet ? $event->projet->nom : ''
+            );
+        }
+
+        $filename = 'evenements_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv; charset=utf-8')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 }
