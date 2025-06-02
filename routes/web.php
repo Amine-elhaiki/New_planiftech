@@ -387,3 +387,4 @@ Route::middleware(['auth'])->group(function () {
         return view('events.calendar');
     })->name('events.calendar.view');
 });
+Route::get('/events/calendar', [EventController::class, 'calendar'])->name('events.calendar');
