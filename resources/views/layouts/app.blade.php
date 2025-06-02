@@ -1,3 +1,11 @@
+{{--
+==================================================
+FICHIER : resources/views/layouts/app.blade.php
+DESCRIPTION : Layout principal sans navbar
+AUTEUR : PlanifTech ORMVAT
+==================================================
+--}}
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -11,31 +19,36 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Styles personnalisés -->
-    <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+    @if(file_exists(public_path('css/custom.css')))
+        <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+    @endif
 
     @stack('styles')
 </head>
 <body>
     <div id="app">
-        <!-- Navigation -->
-        @auth
-            @include('layouts.navbar')
-        @endauth
-
         <!-- Contenu principal -->
-        <main class="@auth container-fluid @else container @endauth py-4">
+        <main class="@guest container @endguest">
             @yield('content')
         </main>
 
-        <!-- Footer -->
-        @include('layouts.footer')
+        <!-- Footer seulement pour les pages de connexion -->
+        @guest
+            @include('layouts.footer')
+        @endguest
     </div>
 
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
     <!-- Scripts personnalisés -->
-    <script src="{{ asset('js/custom.js') }}"></script>
+    @if(file_exists(public_path('js/custom.js')))
+        <script src="{{ asset('js/custom.js') }}"></script>
+    @endif
 
     @stack('scripts')
 </body>

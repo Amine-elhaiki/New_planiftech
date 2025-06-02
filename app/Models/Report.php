@@ -10,7 +10,7 @@ class Report extends Model
 {
     use HasFactory;
 
-    protected $table = 'rapports';
+protected $table = 'rapports';
 
     protected $fillable = [
         'titre',
@@ -32,7 +32,7 @@ class Report extends Model
     ];
 
     const CREATED_AT = 'date_creation';
-    const UPDATED_AT = null;
+    const UPDATED_AT = null; // ou 'date_modification' si vous l'avez
 
     // Relations
     public function utilisateur()

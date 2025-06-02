@@ -44,7 +44,7 @@ Route::middleware('guest')->group(function () {
             request()->session()->regenerate();
 
             // Vérifier si l'utilisateur est actif
-            if (!Auth::user()->isActive()) {
+           if (Auth::user()->statut !== 'actif') {
                 Auth::logout();
                 return back()->withErrors([
                     'email' => 'Votre compte a été désactivé. Contactez l\'administrateur.',
@@ -74,7 +74,7 @@ Route::post('/logout', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'active.user'])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -101,20 +101,24 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     */
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::get('/', [TaskController::class, 'index'])->name('index');
-        Route::get('/create', [TaskController::class, 'create'])->name('create')->middleware('admin');
-        Route::post('/', [TaskController::class, 'store'])->name('store')->middleware('admin');
         Route::get('/{task}', [TaskController::class, 'show'])->name('show');
-        Route::get('/{task}/edit', [TaskController::class, 'edit'])->name('edit')->middleware('admin');
-        Route::put('/{task}', [TaskController::class, 'update'])->name('update')->middleware('admin');
-        Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy')->middleware('admin');
 
-        // Actions spéciales pour les tâches
+        // Actions pour tous les utilisateurs
         Route::patch('/{task}/status', [TaskController::class, 'updateStatus'])->name('update-status');
         Route::patch('/{task}/complete', [TaskController::class, 'markCompleted'])->name('complete');
 
         // API et vues spéciales
         Route::get('/api/list', [TaskController::class, 'api'])->name('api');
         Route::get('/calendar/data', [TaskController::class, 'calendar'])->name('calendar');
+
+        // Routes admin uniquement
+        Route::middleware('admin')->group(function () {
+            Route::get('/create', [TaskController::class, 'create'])->name('create');
+            Route::post('/', [TaskController::class, 'store'])->name('store');
+            Route::get('/{task}/edit', [TaskController::class, 'edit'])->name('edit');
+            Route::put('/{task}', [TaskController::class, 'update'])->name('update');
+            Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
+        });
     });
 
     /*
@@ -148,17 +152,21 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     */
     Route::prefix('projects')->name('projects.')->group(function () {
         Route::get('/', [ProjectController::class, 'index'])->name('index');
-        Route::get('/create', [ProjectController::class, 'create'])->name('create')->middleware('admin');
-        Route::post('/', [ProjectController::class, 'store'])->name('store')->middleware('admin');
         Route::get('/{project}', [ProjectController::class, 'show'])->name('show');
-        Route::get('/{project}/edit', [ProjectController::class, 'edit'])->name('edit')->middleware('admin');
-        Route::put('/{project}', [ProjectController::class, 'update'])->name('update')->middleware('admin');
-        Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy')->middleware('admin');
+        Route::get('/{project}/report', [ProjectController::class, 'report'])->name('report');
 
         // Actions spéciales pour les projets
         Route::patch('/{project}/status', [ProjectController::class, 'updateStatus'])->name('update-status');
-        Route::patch('/{project}/archive', [ProjectController::class, 'archive'])->name('archive')->middleware('admin');
-        Route::get('/{project}/report', [ProjectController::class, 'report'])->name('report');
+
+        // Routes admin uniquement
+        Route::middleware('admin')->group(function () {
+            Route::get('/create', [ProjectController::class, 'create'])->name('create');
+            Route::post('/', [ProjectController::class, 'store'])->name('store');
+            Route::get('/{project}/edit', [ProjectController::class, 'edit'])->name('edit');
+            Route::put('/{project}', [ProjectController::class, 'update'])->name('update');
+            Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy');
+            Route::patch('/{project}/archive', [ProjectController::class, 'archive'])->name('archive');
+        });
     });
 
     /*
@@ -182,6 +190,8 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         // Export et statistiques
         Route::get('/{report}/pdf', [ReportController::class, 'exportPdf'])->name('pdf');
         Route::post('/export/multiple', [ReportController::class, 'exportMultiple'])->name('export.multiple');
+
+        // Statistiques admin uniquement
         Route::get('/statistics/overview', [ReportController::class, 'statistics'])->name('statistics')->middleware('admin');
     });
 
@@ -221,7 +231,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         // Tableau de bord admin
         Route::get('/dashboard', function () {
             return view('admin.dashboard');
-        })->name('dashboard');
+        })->name('admin.dashboard');
 
         // Configuration système
         Route::prefix('settings')->name('settings.')->group(function () {
@@ -287,7 +297,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Routes pour les redirections compatibles
+    | Alias pour compatibilité
     |--------------------------------------------------------------------------
     */
 
@@ -335,4 +345,24 @@ Route::fallback(function () {
     }
 
     return view('errors.404');
+});
+Route::middleware(['auth'])->group(function () {
+
+    // Dashboard principal - redirige selon le rôle
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Dashboard spécifique admin
+    Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
+         ->middleware('role:admin')
+         ->name('admin.dashboard');
+
+    // Dashboard spécifique technicien
+    Route::get('/technician/dashboard', [DashboardController::class, 'technician'])
+         ->middleware('role:technicien')
+         ->name('technician.dashboard');
+
+    // Alias pour compatibilité
+    Route::get('/technicien/dashboard', [DashboardController::class, 'technician'])
+         ->middleware('role:technicien')
+         ->name('technicien.dashboard');
 });

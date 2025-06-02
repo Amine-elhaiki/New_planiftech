@@ -33,6 +33,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'password' => 'hashed',
         'date_creation' => 'datetime',
         'derniere_connexion' => 'datetime',
     ];
@@ -124,55 +125,35 @@ class User extends Authenticatable
     }
 
     // Méthodes métier principales
-
-    /**
-     * Vérifier si l'utilisateur est actif
-     */
     public function isActive()
     {
         return $this->statut === 'actif';
     }
 
-    /**
-     * Vérifier si l'utilisateur est administrateur
-     */
     public function isAdmin()
     {
         return $this->role === 'admin';
     }
 
-    /**
-     * Vérifier si l'utilisateur est technicien
-     */
     public function isTechnicien()
     {
         return $this->role === 'technicien';
     }
 
-    /**
-     * Mettre à jour les informations de profil
-     */
     public function updateProfile(array $data)
     {
         return $this->update($data);
     }
 
-    /**
-     * Mettre à jour le mot de passe
-     */
     public function updatePassword(string $newPassword)
     {
         return $this->update(['password' => Hash::make($newPassword)]);
     }
 
-    /**
-     * Enregistrer une connexion
-     */
     public function enregistrerConnexion()
     {
         $this->update(['derniere_connexion' => now()]);
 
-        // Enregistrer dans le journal si la classe existe
         if (class_exists('App\Models\Journal')) {
             \App\Models\Journal::enregistrerAction('connexion', 'Connexion de : ' . $this->nom_complet, $this->id);
         }
@@ -180,9 +161,6 @@ class User extends Authenticatable
         return $this;
     }
 
-    /**
-     * Activer/Désactiver un utilisateur
-     */
     public function toggleStatus()
     {
         $nouveauStatut = $this->statut === 'actif' ? 'inactif' : 'actif';
@@ -195,9 +173,6 @@ class User extends Authenticatable
         return $this;
     }
 
-    /**
-     * Créer une notification pour cet utilisateur
-     */
     public function creerNotification($titre, $message, $type = 'systeme')
     {
         if (class_exists('App\Models\Notification')) {
@@ -212,17 +187,11 @@ class User extends Authenticatable
         return null;
     }
 
-    /**
-     * Marquer toutes les notifications comme lues
-     */
     public function marquerNotificationsLues()
     {
         return $this->notifications()->where('lue', false)->update(['lue' => true]);
     }
 
-    /**
-     * Obtenir les événements à venir pour cet utilisateur
-     */
     public function getEvenementsAVenir($limite = 10)
     {
         $evenementsOrganises = $this->evenementsOrganises()
@@ -242,18 +211,13 @@ class User extends Authenticatable
                                   ->take($limite);
     }
 
-    /**
-     * Obtenir les projets actifs pour cet utilisateur
-     */
     public function getProjetsActifs($limite = 10)
     {
-        // Projets dont il est responsable
         $projetsResponsable = $this->projetsResponsable()
                                   ->whereIn('statut', ['planifie', 'en_cours'])
                                   ->limit($limite)
                                   ->get();
 
-        // Projets où il a des tâches
         if (class_exists('App\Models\Project')) {
             $projetsAvecTaches = \App\Models\Project::whereHas('taches', function($query) {
                                             $query->where('id_utilisateur', $this->id);
@@ -270,9 +234,6 @@ class User extends Authenticatable
         return $projetsResponsable->take($limite);
     }
 
-    /**
-     * Calculer le taux de completion des tâches
-     */
     public function getTauxCompletionTaches()
     {
         $totalTaches = $this->taches()->count();
@@ -286,9 +247,6 @@ class User extends Authenticatable
         return round(($tachesCompletes / $totalTaches) * 100, 1);
     }
 
-    /**
-     * Obtenir les statistiques de performance
-     */
     public function getStatistiquesPerformance($periode = 30)
     {
         $dateDebut = Carbon::now()->subDays($periode);
@@ -308,13 +266,10 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Réinitialiser le mot de passe
-     */
     public function resetPassword($nouveauMotDePasse = null)
     {
         if (!$nouveauMotDePasse) {
-            $nouveauMotDePasse = 'password123'; // Mot de passe temporaire
+            $nouveauMotDePasse = 'password123';
         }
 
         $this->update(['password' => Hash::make($nouveauMotDePasse)]);
@@ -326,9 +281,6 @@ class User extends Authenticatable
         return $nouveauMotDePasse;
     }
 
-    /**
-     * Vérifier si l'utilisateur peut être supprimé
-     */
     public function peutEtreSuprime()
     {
         return $this->taches()->count() === 0 &&
@@ -337,9 +289,6 @@ class User extends Authenticatable
                $this->rapports()->count() === 0;
     }
 
-    /**
-     * Obtenir les permissions de l'utilisateur
-     */
     public function getPermissions()
     {
         if ($this->isAdmin()) {
@@ -362,19 +311,8 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Vérifier une permission spécifique
-     */
     public function hasPermission($permission)
     {
         return in_array($permission, $this->getPermissions());
-    }
-
-    /**
-     * Mutator pour le mot de passe (hachage automatique)
-     */
-    public function setPasswordAttribute($value)
-    {
-        $this->attributes['password'] = Hash::make($value);
     }
 }
