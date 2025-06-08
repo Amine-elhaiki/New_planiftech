@@ -1,7 +1,7 @@
 {{--
 ==================================================
 FICHIER : resources/views/tasks/index.blade.php
-DESCRIPTION : Liste des tâches avec filtres et statistiques
+DESCRIPTION : Page index des tâches - Design clean et moderne
 AUTEUR : PlanifTech ORMVAT
 ==================================================
 --}}
@@ -12,1405 +12,1100 @@ AUTEUR : PlanifTech ORMVAT
 
 @push('styles')
 <style>
-    .task-card {
+    :root {
+        --primary-color: #4f46e5;
+        --primary-light: #6366f1;
+        --primary-dark: #3730a3;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+        --info-color: #06b6d4;
+        --light-bg: #f8fafc;
+        --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --card-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --border-radius: 12px;
+        --border-radius-lg: 16px;
+    }
+
+    body {
+        background-color: var(--light-bg);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Header moderne */
+    .page-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        color: white;
+        border-radius: var(--border-radius-lg);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(50%, -50%);
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    /* Cards statistiques */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        border: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--card-shadow-lg);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--card-color);
+    }
+
+    .stat-card.total { --card-color: var(--primary-color); }
+    .stat-card.pending { --card-color: var(--warning-color); }
+    .stat-card.progress { --card-color: var(--info-color); }
+    .stat-card.completed { --card-color: var(--success-color); }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+
+    .stat-icon.total { background: rgba(79, 70, 229, 0.1); color: var(--primary-color); }
+    .stat-icon.pending { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
+    .stat-icon.progress { background: rgba(6, 182, 212, 0.1); color: var(--info-color); }
+    .stat-icon.completed { background: rgba(16, 185, 129, 0.1); color: var(--success-color); }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* Section filtres */
+    .filters-section {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 2rem;
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: var(--border-radius);
+        font-size: 0.875rem;
         transition: all 0.2s ease;
-        border-left: 4px solid #e2e8f0;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 1rem;
+    }
+
+    .filter-select {
+        padding: 0.75rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: var(--border-radius);
+        font-size: 0.875rem;
+        background: white;
+        transition: all 0.2s ease;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn-filter {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--border-radius);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn-filter:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    /* Cards des tâches */
+    .tasks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .task-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        border: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+        position: relative;
+        height: fit-content;
     }
 
     .task-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--card-shadow-lg);
     }
 
-    .task-card.priority-basse { border-left-color: #16a34a; }
-    .task-card.priority-moyenne { border-left-color: #f59e0b; }
-    .task-card.priority-haute { border-left-color: #dc2626; }
+    .task-card.priority-haute {
+        border-left: 4px solid var(--danger-color);
+    }
+
+    .task-card.priority-moyenne {
+        border-left: 4px solid var(--warning-color);
+    }
+
+    .task-card.priority-basse {
+        border-left: 4px solid var(--success-color);
+    }
+
+    .task-header {
+        display: flex;
+        justify-content: between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+
+    .task-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .task-description {
+        color: #6b7280;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
 
     .progress-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        width: 60px;
+        height: 60px;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .progress-bg {
+        stroke: #e5e7eb;
+        stroke-width: 4;
+        fill: none;
+    }
+
+    .progress-bar {
+        stroke: var(--primary-color);
+        stroke-width: 4;
+        fill: none;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.5s ease;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         font-size: 0.75rem;
         font-weight: 600;
+        color: #4b5563;
+    }
+
+    .task-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
     }
 
     .status-badge {
         padding: 0.25rem 0.75rem;
-        border-radius: 0.375rem;
+        border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 500;
         text-transform: uppercase;
+        letter-spacing: 0.025em;
     }
 
-    .status-a_faire { background-color: #fef3c7; color: #d97706; }
-    .status-en_cours { background-color: #dbeafe; color: #1d4ed8; }
-    .status-termine { background-color: #dcfce7; color: #16a34a; }
+    .status-a_faire {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
 
-    .priority-badge {
-        padding: 0.125rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.625rem;
+    .status-en_cours {
+        background: rgba(6, 182, 212, 0.1);
+        color: var(--info-color);
+    }
+
+    .status-termine {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .task-date {
+        font-size: 0.875rem;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .task-assignee {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .assignee-name {
+        font-size: 0.875rem;
+        color: #4b5563;
         font-weight: 500;
-        text-transform: uppercase;
     }
 
-    .priority-basse { background-color: #dcfce7; color: #16a34a; }
-    .priority-moyenne { background-color: #fef3c7; color: #d97706; }
-    .priority-haute { background-color: #fee2e2; color: #dc2626; }
+    .task-project {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
 
-    .overdue {
-        background-color: #fef2f2 !important;
-        border-left-color: #dc2626 !important;
+    .task-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .action-btn.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .action-btn.success:hover {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .action-btn.primary {
+        background: rgba(79, 70, 229, 0.1);
+        color: var(--primary-color);
+    }
+
+    .action-btn.primary:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .action-btn.info {
+        background: rgba(6, 182, 212, 0.1);
+        color: var(--info-color);
+    }
+
+    .action-btn.info:hover {
+        background: var(--info-color);
+        color: white;
+    }
+
+    /* État vide */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: var(--border-radius);
+        border: 1px solid #e5e7eb;
+        grid-column: 1 / -1;
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.5rem;
+        background: #f3f4f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #9ca3af;
+    }
+
+    .empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-description {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--border-radius);
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    /* Bouton flottant */
+    .fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 56px;
+        height: 56px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        font-size: 1.5rem;
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+
+    .fab:hover {
+        background: var(--primary-dark);
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+    }
+
+    /* Modal */
+    .modal-content {
+        border: none;
+        border-radius: var(--border-radius-lg);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1.5rem;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #d1d5db;
+        border-radius: var(--border-radius);
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .form-range {
+        accent-color: var(--primary-color);
+    }
+
+    .progress-value {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    /* Notifications */
+    .notification {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1rem 1.5rem;
+        box-shadow: var(--card-shadow-lg);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 0.5rem;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        max-width: 400px;
+    }
+
+    .notification.success {
+        border-left: 4px solid var(--success-color);
+    }
+
+    .notification.error {
+        border-left: 4px solid var(--danger-color);
+    }
+
+    .notification.show {
+        transform: translateX(0);
+    }
+
+    /* Overdue indicator */
+    .overdue-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--danger-color);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .tasks-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .fab {
+            bottom: 1rem;
+            right: 1rem;
+        }
     }
 </style>
 @endpush
 
 @section('content')
-<div class="container-fluid">
-    <!-- En-tête -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">Gestion des tâches</h1>
-            <p class="text-muted mb-0">Suivez et gérez vos tâches techniques</p>
-        </div>
-        @if(auth()->user()->role === 'admin')
-        <div>
-            <a href="{{ route('tasks.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-2"></i>Nouvelle tâche
+<!-- Configuration pour JavaScript -->
+<div id="app-config"
+     data-csrf="{{ csrf_token() }}"
+     data-base-url="{{ url('/') }}"
+     style="display: none;">
+</div>
+
+<div class="container-fluid px-4">
+    <!-- En-tête de page -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center position-relative">
+            <div>
+                <h1>Gestion des Tâches</h1>
+                <p>Organisez et suivez vos interventions techniques efficacement</p>
+            </div>
+            @if(auth()->user()->role === 'admin')
+            <a href="{{ route('tasks.create') }}" class="btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Nouvelle Tâche
             </a>
+            @endif
         </div>
-        @endif
     </div>
 
     <!-- Statistiques -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-primary mb-2">
-                        <i class="bi bi-list-task fs-1"></i>
-                    </div>
-                    <h3 class="mb-1">{{ $stats['total'] }}</h3>
-                    <p class="text-muted mb-0">Total</p>
-                </div>
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <div class="stat-icon total">
+                <i class="bi bi-list-task"></i>
             </div>
+            <div class="stat-number">{{ $stats['total'] ?? 0 }}</div>
+            <div class="stat-label">Total des tâches</div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-warning mb-2">
-                        <i class="bi bi-clock fs-1"></i>
-                    </div>
-                    <h3 class="mb-1">{{ $stats['a_faire'] }}</h3>
-                    <p class="text-muted mb-0">À faire</p>
-                </div>
+
+        <div class="stat-card pending">
+            <div class="stat-icon pending">
+                <i class="bi bi-clock"></i>
             </div>
+            <div class="stat-number">{{ $stats['a_faire'] ?? 0 }}</div>
+            <div class="stat-label">À faire</div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-info mb-2">
-                        <i class="bi bi-arrow-repeat fs-1"></i>
-                    </div>
-                    <h3 class="mb-1">{{ $stats['en_cours'] }}</h3>
-                    <p class="text-muted mb-0">En cours</p>
-                </div>
+
+        
+         <div class="stat-card completed">
+             <div class="stat-icon progress">
+                <i class="bi bi-arrow-repeat"></i>
             </div>
+            <div class="stat-number">{{ $stats['en_cours'] ?? 0 }}</div>
+            <div class="stat-label">En cours</div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-success mb-2">
-                        <i class="bi bi-check-circle fs-1"></i>
-                    </div>
-                    <h3 class="mb-1">{{ $stats['termine'] }}</h3>
-                    <p class="text-muted mb-0">Terminées</p>
-                </div>
+
+        <div class="stat-card completed">
+            <div class="stat-icon completed">
+                <i class="bi bi-check-circle"></i>
             </div>
+            <div class="stat-number">{{ $stats['termine'] ?? 0 }}</div>
+            <div class="stat-label">Terminées</div>
         </div>
     </div>
 
     <!-- Filtres -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="GET" action="{{ route('tasks.index') }}">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="search" class="form-label">Recherche</label>
-                        <input type="text" class="form-control" id="search" name="search"
-                               value="{{ request('search') }}" placeholder="Titre, description...">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="statut" class="form-label">Statut</label>
-                        <select class="form-select" id="statut" name="statut">
-                            <option value="">Tous</option>
-                            <option value="a_faire" {{ request('statut') === 'a_faire' ? 'selected' : '' }}>À faire</option>
-                            <option value="en_cours" {{ request('statut') === 'en_cours' ? 'selected' : '' }}>En cours</option>
-                            <option value="termine" {{ request('statut') === 'termine' ? 'selected' : '' }}>Terminé</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="priorite" class="form-label">Priorité</label>
-                        <select class="form-select" id="priorite" name="priorite">
-                            <option value="">Toutes</option>
-                            <option value="basse" {{ request('priorite') === 'basse' ? 'selected' : '' }}>Basse</option>
-                            <option value="moyenne" {{ request('priorite') === 'moyenne' ? 'selected' : '' }}>Moyenne</option>
-                            <option value="haute" {{ request('priorite') === 'haute' ? 'selected' : '' }}>Haute</option>
-                        </select>
-                    </div>
-                    @if(auth()->user()->role === 'admin' && $users->count() > 0)
-                    <div class="col-md-2">
-                        <label for="utilisateur" class="form-label">Utilisateur</label>
-                        <select class="form-select" id="utilisateur" name="utilisateur">
-                            <option value="">Tous</option>
-                            @foreach($users as $user)
-                                <option value="{{ $user->id }}" {{ request('utilisateur') == $user->id ? 'selected' : '' }}>
-                                    {{ $user->prenom }} {{ $user->nom }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @endif
-                    <div class="col-md-2">
-                        <label for="projet" class="form-label">Projet</label>
-                        <select class="form-select" id="projet" name="projet">
-                            <option value="">Tous</option>
-                            @foreach($projects as $project)
-                                <option value="{{ $project->id }}" {{ request('projet') == $project->id ? 'selected' : '' }}>
-                                    {{ $project->nom }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label d-block">&nbsp;</label>
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-search"></i>
-                        </button>
+    <div class="filters-section">
+        <form method="GET" action="{{ route('tasks.index') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Rechercher</label>
+                    <div class="search-box">
+                        <i class="bi bi-search search-icon"></i>
+                        <input type="text" class="search-input" name="search"
+                               value="{{ request('search') }}"
+                               placeholder="Rechercher une tâche...">
                     </div>
                 </div>
-            </form>
-        </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Statut</label>
+                    <select class="filter-select" name="statut" onchange="this.form.submit()">
+                        <option value="">Tous</option>
+                        <option value="a_faire" {{ request('statut') === 'a_faire' ? 'selected' : '' }}>À faire</option>
+                        <option value="en_cours" {{ request('statut') === 'en_cours' ? 'selected' : '' }}>En cours</option>
+                        <option value="termine" {{ request('statut') === 'termine' ? 'selected' : '' }}>Terminé</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Priorité</label>
+                    <select class="filter-select" name="priorite" onchange="this.form.submit()">
+                        <option value="">Toutes</option>
+                        <option value="basse" {{ request('priorite') === 'basse' ? 'selected' : '' }}>Basse</option>
+                        <option value="moyenne" {{ request('priorite') === 'moyenne' ? 'selected' : '' }}>Moyenne</option>
+                        <option value="haute" {{ request('priorite') === 'haute' ? 'selected' : '' }}>Haute</option>
+                    </select>
+                </div>
+
+                @if(auth()->user()->role === 'admin' && isset($users) && $users->count() > 0)
+                <div class="col-md-2">
+                    <label class="form-label">Technicien</label>
+                    <select class="filter-select" name="utilisateur" onchange="this.form.submit()">
+                        <option value="">Tous</option>
+                        @foreach($users as $user)
+                            <option value="{{ $user->id }}" {{ request('utilisateur') == $user->id ? 'selected' : '' }}>
+                                {{ $user->prenom }} {{ $user->nom }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
+                <div class="col-md-2">
+                    <button type="submit" class="btn-filter w-100">
+                        <i class="bi bi-funnel me-2"></i>Filtrer
+                    </button>
+                </div>
+            </div>
+        </form>
     </div>
 
     <!-- Liste des tâches -->
-    <div class="row">
+    <div class="tasks-grid">
         @forelse($tasks as $task)
-        <div class="col-lg-6 col-xl-4 mb-4">
-            <div class="card task-card priority-{{ $task->priorite }} h-100 {{ $task->date_echeance < now() && in_array($task->statut, ['a_faire', 'en_cours']) ? 'overdue' : '' }}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <h5 class="card-title mb-0">
-                            <a href="{{ route('tasks.show', $task) }}" class="text-decoration-none">
-                                {{ $task->titre }}
-                            </a>
-                        </h5>
-                        <div class="d-flex gap-1">
-                            <span class="priority-badge priority-{{ $task->priorite }}">
-                                {{ ucfirst($task->priorite) }}
-                            </span>
-                            @if($task->date_echeance < now() && in_array($task->statut, ['a_faire', 'en_cours']))
-                                <span class="badge bg-danger">En retard</span>
-                            @endif
-                        </div>
-                    </div>
+        @php
+            $isOverdue = $task->date_echeance < now() && in_array($task->statut, ['a_faire', 'en_cours']);
+            $progress = $task->progression ?? 0;
+            $circumference = 2 * pi() * 26;
+            $offset = $circumference - ($progress / 100) * $circumference;
+        @endphp
 
-                    <p class="card-text text-muted small mb-3">
-                        {{ Str::limit($task->description, 100) }}
-                    </p>
+        <div class="task-card priority-{{ $task->priorite }}">
+            @if($isOverdue)
+                <div class="overdue-badge">En retard</div>
+            @endif
 
-                    <div class="row align-items-center mb-3">
-                        <div class="col">
-                            <div class="d-flex align-items-center">
-                                <div class="progress-circle bg-light me-3">
-                                    {{ $task->progression }}%
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar
-                                            @if($task->progression < 30) bg-danger
-                                            @elseif($task->progression < 70) bg-warning
-                                            @else bg-success @endif"
-                                            style="width: {{ $task->progression }}%">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="task-header">
+                <div style="flex: 1;">
+                    <h3 class="task-title">{{ $task->titre }}</h3>
+                    <p class="task-description">{{ Str::limit($task->description, 120) }}</p>
+                </div>
 
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="status-badge status-{{ $task->statut }}">
-                            {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
-                        </span>
-                        <small class="text-muted">
-                            <i class="bi bi-calendar me-1"></i>
-                            {{ $task->date_echeance->format('d/m/Y') }}
-                        </small>
-                    </div>
-
-                    @if($task->utilisateur)
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="bi bi-person me-1"></i>
-                            {{ $task->utilisateur->prenom }} {{ $task->utilisateur->nom }}
-                        </small>
-                    </div>
-                    @endif
-
-                    @if($task->projet)
-                    <div class="mt-1">
-                        <small class="text-muted">
-                            <i class="bi bi-folder me-1"></i>
-                            {{ $task->projet->nom }}
-                        </small>
-                    </div>
-                    @endif
-
-                    <!-- Actions rapides -->
-                    @if(auth()->user()->role === 'admin' || $task->id_utilisateur === auth()->id())
-                    <div class="mt-3 d-flex gap-2">
-                        @if($task->statut !== 'termine')
-                        <button class="btn btn-sm btn-outline-success" onclick="markCompleted({{ $task->id }})">
-                            <i class="bi bi-check-circle"></i>
-                        </button>
-                        @endif
-
-                        <button class="btn btn-sm btn-outline-primary" onclick="updateStatus({{ $task->id }})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-
-                        <a href="{{ route('tasks.show', $task) }}" class="btn btn-sm btn-outline-info">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                    </div>
-                    @endif
+                <div class="progress-circle">
+                    <svg width="60" height="60">
+                        <circle class="progress-bg" cx="30" cy="30" r="26"></circle>
+                        <circle class="progress-bar" cx="30" cy="30" r="26"
+                                stroke-dasharray="{{ $circumference }}"
+                                stroke-dashoffset="{{ $offset }}"></circle>
+                    </svg>
+                    <div class="progress-text">{{ $progress }}%</div>
                 </div>
             </div>
+
+            <div class="task-meta">
+                <span class="status-badge status-{{ $task->statut }}">
+                    {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
+                </span>
+                <div class="task-date">
+                    <i class="bi bi-calendar3"></i>
+                    {{ $task->date_echeance->format('d/m/Y') }}
+                </div>
+            </div>
+
+            @if($task->utilisateur)
+            <div class="task-assignee">
+                <div class="avatar">
+                    {{ substr($task->utilisateur->prenom, 0, 1) }}{{ substr($task->utilisateur->nom, 0, 1) }}
+                </div>
+                <span class="assignee-name">{{ $task->utilisateur->prenom }} {{ $task->utilisateur->nom }}</span>
+            </div>
+            @endif
+
+            @if($task->projet)
+            <div class="task-project">
+                <i class="bi bi-folder2"></i>
+                {{ $task->projet->nom }}
+            </div>
+            @endif
+
+            @if(auth()->user()->role === 'admin' || $task->id_utilisateur === auth()->id())
+            <div class="task-actions">
+                @if($task->statut !== 'termine')
+                <button class="action-btn success"
+                        data-action="complete"
+                        data-task-id="{{ $task->id }}"
+                        title="Marquer comme terminé">
+                    <i class="bi bi-check-lg"></i>
+                </button>
+                @endif
+
+                <button class="action-btn primary"
+                        data-action="status"
+                        data-task-id="{{ $task->id }}"
+                        title="Modifier le statut">
+                    <i class="bi bi-pencil"></i>
+                </button>
+
+                <a href="{{ route('tasks.show', $task) }}"
+                   class="action-btn info"
+                   title="Voir les détails">
+                    <i class="bi bi-eye"></i>
+                </a>
+            </div>
+            @endif
         </div>
+
         @empty
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-inbox display-4 text-muted mb-3"></i>
-                    <h5 class="text-muted">Aucune tâche trouvée</h5>
-                    <p class="text-muted">
-                        @if(request()->hasAny(['search', 'statut', 'priorite', 'utilisateur', 'projet']))
-                            Essayez de modifier vos critères de recherche.
-                        @else
-                            @if(auth()->user()->role === 'admin')
-                                Commencez par créer votre première tâche.
-                            @else
-                                Aucune tâche ne vous a été assignée pour le moment.
-                            @endif
-                        @endif
-                    </p>
-                    @if(auth()->user()->role === 'admin')
-                    <a href="{{ route('tasks.create') }}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle me-2"></i>Créer une tâche
-                    </a>
-                    @endif
-                </div>
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="bi bi-inbox"></i>
             </div>
+            <h3 class="empty-title">Aucune tâche trouvée</h3>
+            <p class="empty-description">
+                @if(request()->hasAny(['search', 'statut', 'priorite', 'utilisateur']))
+                    Aucune tâche ne correspond à vos critères de recherche.
+                @else
+                    @if(auth()->user()->role === 'admin')
+                        Commencez par créer votre première tâche.
+                    @else
+                        Aucune tâche ne vous a été assignée pour le moment.
+                    @endif
+                @endif
+            </p>
+            @if(auth()->user()->role === 'admin')
+            <a href="{{ route('tasks.create') }}" class="btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Créer une tâche
+            </a>
+            @endif
         </div>
         @endforelse
     </div>
 
     <!-- Pagination -->
-    @if($tasks->hasPages())
+    @if(isset($tasks) && $tasks->hasPages())
     <div class="d-flex justify-content-center mt-4">
         {{ $tasks->appends(request()->query())->links() }}
     </div>
     @endif
 </div>
 
+<!-- Bouton flottant -->
+@if(auth()->user()->role === 'admin')
+<a href="{{ route('tasks.create') }}" class="fab" title="Nouvelle tâche">
+    <i class="bi bi-plus-lg"></i>
+</a>
+@endif
+
 <!-- Modal de mise à jour du statut -->
 <div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Mettre à jour le statut</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-gear me-2"></i>Mettre à jour le statut
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="statusForm">
                 <div class="modal-body">
                     <input type="hidden" id="taskId">
+
                     <div class="mb-3">
                         <label for="modalStatut" class="form-label">Statut</label>
-                        <select class="form-select" id="modalStatut" name="statut" required>
+                        <select class="form-select" id="modalStatut" name="statut">
                             <option value="a_faire">À faire</option>
                             <option value="en_cours">En cours</option>
                             <option value="termine">Terminé</option>
                         </select>
                     </div>
+
                     <div class="mb-3">
                         <label for="modalProgression" class="form-label">Progression (%)</label>
-                        <input type="range" class="form-range" id="modalProgression" name="progression"
-                               min="0" max="100" value="0" oninput="updateProgressValue(this.value)">
+                        <input type="range" class="form-range" id="modalProgression"
+                               name="progression" min="0" max="100" value="0">
                         <div class="text-center mt-2">
-                            <span id="progressValue">0</span>%
+                            <span id="progressValue" class="progress-value">0%</span>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Mettre à jour</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="bi bi-check-lg me-2"></i>Mettre à jour
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Zone des notifications -->
+<div id="notifications" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 @endsection
 
 @push('scripts')
 <script>
-// Marquer une tâche comme terminée
-function markCompleted(taskId) {
-    if (confirm('Marquer cette tâche comme terminée ?')) {
-        fetch(`/tasks/${taskId}/complete`, {
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuration
+    var config = document.getElementById('app-config');
+    var csrfToken = config.getAttribute('data-csrf');
+    var baseUrl = config.getAttribute('data-base-url');
+
+    var statusModal = null;
+
+    // Initialisation
+    initModal();
+    initEventListeners();
+
+    function initModal() {
+        var modalEl = document.getElementById('statusModal');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            statusModal = new bootstrap.Modal(modalEl);
+        }
+    }
+
+    function initEventListeners() {
+        // Boutons d'action
+        document.addEventListener('click', function(e) {
+            var button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            var action = button.getAttribute('data-action');
+            var taskId = button.getAttribute('data-task-id');
+
+            if (action === 'complete') {
+                markCompleted(taskId);
+            } else if (action === 'status') {
+                openStatusModal(taskId);
+            }
+        });
+
+        // Slider de progression
+        var progressSlider = document.getElementById('modalProgression');
+        if (progressSlider) {
+            progressSlider.addEventListener('input', function() {
+                updateProgressDisplay(this.value);
+            });
+        }
+
+        // Formulaire de statut
+        var statusForm = document.getElementById('statusForm');
+        if (statusForm) {
+            statusForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitStatusForm();
+            });
+        }
+
+        // Recherche avec délai
+        var searchInput = document.querySelector('[name="search"]');
+        if (searchInput) {
+            var searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                var form = this.form;
+                searchTimeout = setTimeout(function() {
+                    form.submit();
+                }, 500);
+            });
+        }
+    }
+
+    function markCompleted(taskId) {
+        if (!confirm('Marquer cette tâche comme terminée ?')) return;
+
+        var url = baseUrl + '/tasks/' + taskId + '/complete';
+
+        fetch(url, {
             method: 'PATCH',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
             if (data.success) {
-                location.reload();
+                showNotification('Tâche marquée comme terminée !', 'success');
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1500);
             } else {
-                alert('Erreur lors de la mise à jour');
+                showNotification('Erreur lors de la mise à jour', 'error');
             }
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Erreur:', error);
-            alert('Erreur lors de la mise à jour');
+            showNotification('Erreur lors de la mise à jour', 'error');
         });
     }
-}
 
-// Ouvrir le modal de mise à jour du statut
-function updateStatus(taskId) {
-    document.getElementById('taskId').value = taskId;
-    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
-    modal.show();
-}
-
-// Mettre à jour la valeur de progression affichée
-function updateProgressValue(value) {
-    document.getElementById('progressValue').textContent = value;
-
-    // Ajuster automatiquement le statut selon la progression
-    const statutSelect = document.getElementById('modalStatut');
-    if (value == 0) {
-        statutSelect.value = 'a_faire';
-    } else if (value == 100) {
-        statutSelect.value = 'termine';
-    } else {
-        statutSelect.value = 'en_cours';
-    }
-}
-
-// Soumettre le formulaire de mise à jour du statut
-document.getElementById('statusForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const taskId = document.getElementById('taskId').value;
-    const formData = new FormData(this);
-
-    fetch(`/tasks/${taskId}/status`, {
-        method: 'PATCH',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
-            location.reload();
-        } else {
-            alert('Erreur lors de la mise à jour');
+    function openStatusModal(taskId) {
+        document.getElementById('taskId').value = taskId;
+        if (statusModal) {
+            statusModal.show();
         }
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        alert('Erreur lors de la mise à jour');
-    });
-});
-
-// Ajuster automatiquement le statut quand la progression change
-document.getElementById('modalProgression').addEventListener('input', function() {
-    updateProgressValue(this.value);
-});
-</script>
-@endpush
-
-{{--
-==================================================
-FICHIER : resources/views/tasks/create.blade.php
-DESCRIPTION : Formulaire de création d'une nouvelle tâche
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
-@extends('layouts.app')
-
-@section('title', 'Créer une tâche')
-
-@section('content')
-<div class="container-fluid">
-    <!-- En-tête -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">Créer une nouvelle tâche</h1>
-            <p class="text-muted mb-0">Assignez une nouvelle tâche à un technicien</p>
-        </div>
-        <a href="{{ route('tasks.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Retour à la liste
-        </a>
-    </div>
-
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-body">
-                    <form method="POST" action="{{ route('tasks.store') }}">
-                        @csrf
-
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="titre" class="form-label">Titre de la tâche <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('titre') is-invalid @enderror"
-                                           id="titre" name="titre" value="{{ old('titre') }}" required>
-                                    @error('titre')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="priorite" class="form-label">Priorité <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('priorite') is-invalid @enderror"
-                                            id="priorite" name="priorite" required>
-                                        <option value="">Sélectionner...</option>
-                                        <option value="basse" {{ old('priorite') === 'basse' ? 'selected' : '' }}>Basse</option>
-                                        <option value="moyenne" {{ old('priorite') === 'moyenne' ? 'selected' : '' }}>Moyenne</option>
-                                        <option value="haute" {{ old('priorite') === 'haute' ? 'selected' : '' }}>Haute</option>
-                                    </select>
-                                    @error('priorite')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
-                            <textarea class="form-control @error('description') is-invalid @enderror"
-                                      id="description" name="description" rows="4" required>{{ old('description') }}</textarea>
-                            @error('description')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="date_echeance" class="form-label">Date d'échéance <span class="text-danger">*</span></label>
-                                    <input type="datetime-local" class="form-control @error('date_echeance') is-invalid @enderror"
-                                           id="date_echeance" name="date_echeance"
-                                           value="{{ old('date_echeance', now()->addDays(7)->format('Y-m-d\TH:i')) }}" required>
-                                    @error('date_echeance')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_utilisateur" class="form-label">Assigné à <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('id_utilisateur') is-invalid @enderror"
-                                            id="id_utilisateur" name="id_utilisateur" required>
-                                        <option value="">Sélectionner un technicien...</option>
-                                        @foreach($users as $user)
-                                            <option value="{{ $user->id }}" {{ old('id_utilisateur') == $user->id ? 'selected' : '' }}>
-                                                {{ $user->prenom }} {{ $user->nom }} ({{ ucfirst($user->role) }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('id_utilisateur')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_projet" class="form-label">Projet associé</label>
-                                    <select class="form-select @error('id_projet') is-invalid @enderror"
-                                            id="id_projet" name="id_projet">
-                                        <option value="">Aucun projet</option>
-                                        @foreach($projects as $project)
-                                            <option value="{{ $project->id }}" {{ old('id_projet') == $project->id ? 'selected' : '' }}>
-                                                {{ $project->nom }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('id_projet')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_evenement" class="form-label">Événement associé</label>
-                                    <select class="form-select @error('id_evenement') is-invalid @enderror"
-                                            id="id_evenement" name="id_evenement">
-                                        <option value="">Aucun événement</option>
-                                        @foreach($events as $event)
-                                            <option value="{{ $event->id }}" {{ old('id_evenement') == $event->id ? 'selected' : '' }}>
-                                                {{ $event->titre }} - {{ $event->date_debut->format('d/m/Y') }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('id_evenement')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ route('tasks.index') }}" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle me-2"></i>Annuler
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-2"></i>Créer la tâche
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Conseils</h6>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <h6 class="text-primary">Titre efficace</h6>
-                        <p class="small text-muted mb-0">Utilisez un titre clair et concis qui décrit l'action à effectuer.</p>
-                    </div>
-                    <div class="mb-3">
-                        <h6 class="text-primary">Description détaillée</h6>
-                        <p class="small text-muted mb-0">Incluez tous les détails nécessaires : localisation, équipements, procédures...</p>
-                    </div>
-                    <div class="mb-3">
-                        <h6 class="text-primary">Priorité appropriée</h6>
-                        <p class="small text-muted mb-0">
-                            <span class="badge bg-danger me-1">Haute</span> Urgences<br>
-                            <span class="badge bg-warning me-1">Moyenne</span> Planifiées<br>
-                            <span class="badge bg-success me-1">Basse</span> Maintenance
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
-
-{{--
-==================================================
-FICHIER : resources/views/tasks/show.blade.php
-DESCRIPTION : Détails d'une tâche
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
-@extends('layouts.app')
-
-@section('title', 'Détails de la tâche')
-
-@push('styles')
-<style>
-    .progress-circle {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        font-weight: 600;
-        position: relative;
     }
 
-    .status-badge {
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-        text-transform: uppercase;
+    function updateProgressDisplay(value) {
+        var progressValue = document.getElementById('progressValue');
+        if (progressValue) {
+            progressValue.textContent = value + '%';
+        }
+
+        // Auto-ajustement du statut
+        var statusSelect = document.getElementById('modalStatut');
+        if (statusSelect) {
+            if (value == 0) {
+                statusSelect.value = 'a_faire';
+            } else if (value == 100) {
+                statusSelect.value = 'termine';
+            } else if (statusSelect.value === 'a_faire') {
+                statusSelect.value = 'en_cours';
+            }
+        }
     }
 
-    .priority-indicator {
-        width: 4px;
-        height: 100%;
-        position: absolute;
-        left: 0;
-        top: 0;
-        border-radius: 0 0.375rem 0.375rem 0;
-    }
+    function submitStatusForm() {
+        var taskId = document.getElementById('taskId').value;
+        var formData = new FormData(document.getElementById('statusForm'));
+        var url = baseUrl + '/tasks/' + taskId + '/status';
 
-    .priority-basse { background-color: #16a34a; }
-    .priority-moyenne { background-color: #f59e0b; }
-    .priority-haute { background-color: #dc2626; }
-</style>
-@endpush
-
-@section('content')
-<div class="container-fluid">
-    <!-- En-tête -->
-    <div class="d-flex justify-content-between align-items-start mb-4">
-        <div>
-            <div class="d-flex align-items-center mb-2">
-                <a href="{{ route('tasks.index') }}" class="btn btn-outline-secondary btn-sm me-3">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <h1 class="h3 mb-0">{{ $task->titre }}</h1>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-{{ $task->priorite === 'haute' ? 'danger' : ($task->priorite === 'moyenne' ? 'warning' : 'success') }} text-uppercase">
-                    {{ $task->priorite }} priorité
-                </span>
-                <span class="badge bg-{{ $task->statut === 'termine' ? 'success' : ($task->statut === 'en_cours' ? 'primary' : 'secondary') }}">
-                    {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
-                </span>
-                @if($task->date_echeance < now() && in_array($task->statut, ['a_faire', 'en_cours']))
-                    <span class="badge bg-danger">En retard</span>
-                @endif
-            </div>
-        </div>
-
-        @if(auth()->user()->role === 'admin' || $task->id_utilisateur === auth()->id())
-        <div class="dropdown">
-            <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-                <i class="bi bi-gear me-2"></i>Actions
-            </button>
-            <ul class="dropdown-menu">
-                @if(auth()->user()->role === 'admin')
-                <li>
-                    <a class="dropdown-item" href="{{ route('tasks.edit', $task) }}">
-                        <i class="bi bi-pencil me-2"></i>Modifier
-                    </a>
-                </li>
-                @endif
-                @if($task->statut !== 'termine')
-                <li>
-                    <button class="dropdown-item" onclick="markCompleted({{ $task->id }})">
-                        <i class="bi bi-check-circle me-2"></i>Marquer comme terminé
-                    </button>
-                </li>
-                @endif
-                <li>
-                    <button class="dropdown-item" onclick="updateStatus({{ $task->id }})">
-                        <i class="bi bi-arrow-repeat me-2"></i>Changer le statut
-                    </button>
-                </li>
-                @if(auth()->user()->role === 'admin')
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <button class="dropdown-item text-danger" onclick="deleteTask({{ $task->id }})">
-                        <i class="bi bi-trash me-2"></i>Supprimer
-                    </button>
-                </li>
-                @endif
-            </ul>
-        </div>
-        @endif
-    </div>
-
-    <div class="row">
-        <!-- Colonne principale -->
-        <div class="col-lg-8">
-            <!-- Description -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Description</h6>
-                </div>
-                <div class="card-body">
-                    <p class="mb-0">{{ $task->description }}</p>
-                </div>
-            </div>
-
-            <!-- Progression -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Progression</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-auto">
-                            <div class="progress-circle bg-light">
-                                {{ $task->progression }}%
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="progress mb-2" style="height: 10px;">
-                                <div class="progress-bar
-                                    @if($task->progression < 30) bg-danger
-                                    @elseif($task->progression < 70) bg-warning
-                                    @else bg-success @endif"
-                                    style="width: {{ $task->progression }}%">
-                                </div>
-                            </div>
-                            <p class="text-muted mb-0">
-                                @if($task->progression == 0)
-                                    Pas encore commencé
-                                @elseif($task->progression < 100)
-                                    En cours d'exécution
-                                @else
-                                    Tâche terminée
-                                @endif
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Historique (placeholder) -->
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Historique</h6>
-                </div>
-                <div class="card-body">
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-primary"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">Tâche créée</h6>
-                                <p class="text-muted mb-0">{{ $task->created_at->format('d/m/Y à H:i') }}</p>
-                            </div>
-                        </div>
-                        @if($task->updated_at != $task->created_at)
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-info"></div>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">Dernière modification</h6>
-                                <p class="text-muted mb-0">{{ $task->updated_at->format('d/m/Y à H:i') }}</p>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Colonne latérale -->
-        <div class="col-lg-4">
-            <!-- Informations générales -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Informations</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-sm-5 text-muted">Assigné à :</div>
-                        <div class="col-sm-7">
-                            @if($task->utilisateur)
-                                <div class="d-flex align-items-center">
-                                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2"
-                                         style="width: 32px; height: 32px;">
-                                        <span class="text-white fw-bold small">
-                                            {{ substr($task->utilisateur->prenom, 0, 1) }}{{ substr($task->utilisateur->nom, 0, 1) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <div class="fw-medium">{{ $task->utilisateur->prenom }} {{ $task->utilisateur->nom }}</div>
-                                        <small class="text-muted">{{ ucfirst($task->utilisateur->role) }}</small>
-                                    </div>
-                                </div>
-                            @else
-                                <span class="text-muted">Non assigné</span>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-sm-5 text-muted">Échéance :</div>
-                        <div class="col-sm-7">
-                            <span class="{{ $task->date_echeance < now() && $task->statut !== 'termine' ? 'text-danger fw-bold' : '' }}">
-                                {{ $task->date_echeance->format('d/m/Y à H:i') }}
-                            </span>
-                            @if($task->date_echeance < now() && $task->statut !== 'termine')
-                                <br><small class="text-danger">En retard de {{ $task->date_echeance->diffForHumans() }}</small>
-                            @else
-                                <br><small class="text-muted">{{ $task->date_echeance->diffForHumans() }}</small>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-sm-5 text-muted">Priorité :</div>
-                        <div class="col-sm-7">
-                            <span class="badge bg-{{ $task->priorite === 'haute' ? 'danger' : ($task->priorite === 'moyenne' ? 'warning' : 'success') }}">
-                                {{ ucfirst($task->priorite) }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-sm-5 text-muted">Statut :</div>
-                        <div class="col-sm-7">
-                            <span class="badge bg-{{ $task->statut === 'termine' ? 'success' : ($task->statut === 'en_cours' ? 'primary' : 'secondary') }}">
-                                {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-sm-5 text-muted">Progression :</div>
-                        <div class="col-sm-7">
-                            <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-primary" style="width: {{ $task->progression }}%"></div>
-                            </div>
-                            <small class="text-muted">{{ $task->progression }}% terminé</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Associations -->
-            @if($task->projet || $task->evenement)
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-link me-2"></i>Associations</h6>
-                </div>
-                <div class="card-body">
-                    @if($task->projet)
-                    <div class="mb-3">
-                        <div class="text-muted mb-1">Projet :</div>
-                        <a href="{{ route('projects.show', $task->projet) }}" class="text-decoration-none">
-                            <i class="bi bi-folder me-2"></i>{{ $task->projet->nom }}
-                        </a>
-                    </div>
-                    @endif
-
-                    @if($task->evenement)
-                    <div>
-                        <div class="text-muted mb-1">Événement :</div>
-                        <a href="{{ route('events.show', $task->evenement) }}" class="text-decoration-none">
-                            <i class="bi bi-calendar-event me-2"></i>{{ $task->evenement->titre }}
-                        </a>
-                        <br><small class="text-muted">{{ $task->evenement->date_debut->format('d/m/Y') }}</small>
-                    </div>
-                    @endif
-                </div>
-            </div>
-            @endif
-
-            <!-- Actions rapides -->
-            @if(auth()->user()->role === 'admin' || $task->id_utilisateur === auth()->id())
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Actions rapides</h6>
-                </div>
-                <div class="card-body">
-                    @if($task->statut !== 'termine')
-                    <button class="btn btn-success w-100 mb-2" onclick="markCompleted({{ $task->id }})">
-                        <i class="bi bi-check-circle me-2"></i>Marquer comme terminé
-                    </button>
-                    @endif
-
-                    <button class="btn btn-primary w-100 mb-2" onclick="updateStatus({{ $task->id }})">
-                        <i class="bi bi-arrow-repeat me-2"></i>Mettre à jour le statut
-                    </button>
-
-                    @if(auth()->user()->role === 'admin')
-                    <a href="{{ route('tasks.edit', $task) }}" class="btn btn-outline-primary w-100">
-                        <i class="bi bi-pencil me-2"></i>Modifier la tâche
-                    </a>
-                    @endif
-                </div>
-            </div>
-            @endif
-        </div>
-    </div>
-</div>
-
-<!-- Modal de mise à jour du statut -->
-<div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Mettre à jour le statut</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="statusForm">
-                <div class="modal-body">
-                    <input type="hidden" id="taskId" value="{{ $task->id }}">
-                    <div class="mb-3">
-                        <label for="modalStatut" class="form-label">Statut</label>
-                        <select class="form-select" id="modalStatut" name="statut" required>
-                            <option value="a_faire" {{ $task->statut === 'a_faire' ? 'selected' : '' }}>À faire</option>
-                            <option value="en_cours" {{ $task->statut === 'en_cours' ? 'selected' : '' }}>En cours</option>
-                            <option value="termine" {{ $task->statut === 'termine' ? 'selected' : '' }}>Terminé</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modalProgression" class="form-label">Progression (%)</label>
-                        <input type="range" class="form-range" id="modalProgression" name="progression"
-                               min="0" max="100" value="{{ $task->progression }}" oninput="updateProgressValue(this.value)">
-                        <div class="text-center mt-2">
-                            <span id="progressValue">{{ $task->progression }}</span>%
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Mettre à jour</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endsection
-
-@push('scripts')
-<script>
-// Marquer une tâche comme terminée
-function markCompleted(taskId) {
-    if (confirm('Marquer cette tâche comme terminée ?')) {
-        fetch(`/tasks/${taskId}/complete`, {
+        fetch(url, {
             method: 'PATCH',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-            }
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
             if (data.success) {
-                location.reload();
+                if (statusModal) {
+                    statusModal.hide();
+                }
+                showNotification('Statut mis à jour avec succès !', 'success');
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1500);
             } else {
-                alert('Erreur lors de la mise à jour');
+                showNotification('Erreur lors de la mise à jour', 'error');
             }
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Erreur:', error);
-            alert('Erreur lors de la mise à jour');
+            showNotification('Erreur lors de la mise à jour', 'error');
         });
     }
-}
 
-// Ouvrir le modal de mise à jour du statut
-function updateStatus(taskId) {
-    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
-    modal.show();
-}
+    function showNotification(message, type) {
+        var container = document.getElementById('notifications');
+        if (!container) return;
 
-// Mettre à jour la valeur de progression affichée
-function updateProgressValue(value) {
-    document.getElementById('progressValue').textContent = value;
+        var notification = document.createElement('div');
+        notification.className = 'notification ' + type;
+        notification.innerHTML =
+            '<div class="d-flex align-items-center justify-content-between">' +
+                '<div class="d-flex align-items-center">' +
+                    '<i class="bi bi-' + (type === 'success' ? 'check-circle' : 'exclamation-triangle') + ' me-2"></i>' +
+                    message +
+                '</div>' +
+                '<button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>' +
+            '</div>';
 
-    // Ajuster automatiquement le statut selon la progression
-    const statutSelect = document.getElementById('modalStatut');
-    if (value == 0) {
-        statutSelect.value = 'a_faire';
-    } else if (value == 100) {
-        statutSelect.value = 'termine';
-    } else if (statutSelect.value === 'a_faire') {
-        statutSelect.value = 'en_cours';
-    }
-}
+        container.appendChild(notification);
 
-// Soumettre le formulaire de mise à jour du statut
-document.getElementById('statusForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+        // Animation d'entrée
+        setTimeout(function() {
+            notification.classList.add('show');
+        }, 100);
 
-    const taskId = document.getElementById('taskId').value;
-    const formData = new FormData(this);
-
-    fetch(`/tasks/${taskId}/status`, {
-        method: 'PATCH',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
-            location.reload();
-        } else {
-            alert('Erreur lors de la mise à jour');
-        }
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        alert('Erreur lors de la mise à jour');
-    });
-});
-
-// Supprimer une tâche
-function deleteTask(taskId) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.')) {
-        fetch(`/tasks/${taskId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        // Auto-suppression
+        setTimeout(function() {
+            if (notification.parentElement) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(function() {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
             }
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.href = '/tasks';
-            } else {
-                alert('Erreur lors de la suppression');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            alert('Erreur lors de la suppression');
-        });
-    }
-}
-</script>
-
-<style>
-.timeline {
-    position: relative;
-    padding-left: 1.5rem;
-}
-
-.timeline-item {
-    position: relative;
-    padding-bottom: 1rem;
-}
-
-.timeline-item:not(:last-child)::before {
-    content: '';
-    position: absolute;
-    left: -1.125rem;
-    top: 1.5rem;
-    bottom: -0.5rem;
-    width: 2px;
-    background-color: #e2e8f0;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: -1.375rem;
-    top: 0.25rem;
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px #e2e8f0;
-}
-</style>
-@endpush
-
-{{--
-==================================================
-FICHIER : resources/views/tasks/edit.blade.php
-DESCRIPTION : Formulaire d'édition d'une tâche
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
-@extends('layouts.app')
-
-@section('title', 'Modifier la tâche')
-
-@section('content')
-<div class="container-fluid">
-    <!-- En-tête -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">Modifier la tâche</h1>
-            <p class="text-muted mb-0">{{ $task->titre }}</p>
-        </div>
-        <div>
-            <a href="{{ route('tasks.show', $task) }}" class="btn btn-outline-info me-2">
-                <i class="bi bi-eye me-2"></i>Voir les détails
-            </a>
-            <a href="{{ route('tasks.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Retour à la liste
-            </a>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-body">
-                    <form method="POST" action="{{ route('tasks.update', $task) }}">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="titre" class="form-label">Titre de la tâche <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('titre') is-invalid @enderror"
-                                           id="titre" name="titre" value="{{ old('titre', $task->titre) }}" required>
-                                    @error('titre')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="priorite" class="form-label">Priorité <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('priorite') is-invalid @enderror"
-                                            id="priorite" name="priorite" required>
-                                        <option value="">Sélectionner...</option>
-                                        <option value="basse" {{ old('priorite', $task->priorite) === 'basse' ? 'selected' : '' }}>Basse</option>
-                                        <option value="moyenne" {{ old('priorite', $task->priorite) === 'moyenne' ? 'selected' : '' }}>Moyenne</option>
-                                        <option value="haute" {{ old('priorite', $task->priorite) === 'haute' ? 'selected' : '' }}>Haute</option>
-                                    </select>
-                                    @error('priorite')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
-                            <textarea class="form-control @error('description') is-invalid @enderror"
-                                      id="description" name="description" rows="4" required>{{ old('description', $task->description) }}</textarea>
-                            @error('description')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="date_echeance" class="form-label">Date d'échéance <span class="text-danger">*</span></label>
-                                    <input type="datetime-local" class="form-control @error('date_echeance') is-invalid @enderror"
-                                           id="date_echeance" name="date_echeance"
-                                           value="{{ old('date_echeance', $task->date_echeance->format('Y-m-d\TH:i')) }}" required>
-                                    @error('date_echeance')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="statut" class="form-label">Statut <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('statut') is-invalid @enderror"
-                                            id="statut" name="statut" required>
-                                        <option value="a_faire" {{ old('statut', $task->statut) === 'a_faire' ? 'selected' : '' }}>À faire</option>
-                                        <option value="en_cours" {{ old('statut', $task->statut) === 'en_cours' ? 'selected' : '' }}>En cours</option>
-                                        <option value="termine" {{ old('statut', $task->statut) === 'termine' ? 'selected' : '' }}>Terminé</option>
-                                    </select>
-                                    @error('statut')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="progression" class="form-label">Progression (%)</label>
-                                    <input type="range" class="form-range" id="progression" name="progression"
-                                           min="0" max="100" value="{{ old('progression', $task->progression) }}"
-                                           oninput="updateProgressValue(this.value)">
-                                    <div class="text-center mt-2">
-                                        <span id="progressValue">{{ old('progression', $task->progression) }}</span>%
-                                    </div>
-                                    @error('progression')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_utilisateur" class="form-label">Assigné à <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('id_utilisateur') is-invalid @enderror"
-                                            id="id_utilisateur" name="id_utilisateur" required>
-                                        <option value="">Sélectionner un technicien...</option>
-                                        @foreach($users as $user)
-                                            <option value="{{ $user->id }}" {{ old('id_utilisateur', $task->id_utilisateur) == $user->id ? 'selected' : '' }}>
-                                                {{ $user->prenom }} {{ $user->nom }} ({{ ucfirst($user->role) }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('id_utilisateur')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_projet" class="form-label">Projet associé</label>
-                                    <select class="form-select @error('id_projet') is-invalid @enderror"
-                                            id="id_projet" name="id_projet">
-                                        <option value="">Aucun projet</option>
-                                        @foreach($projects as $project)
-                                            <option value="{{ $project->id }}" {{ old('id_projet', $task->id_projet) == $project->id ? 'selected' : '' }}>
-                                                {{ $project->nom }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('id_projet')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_evenement" class="form-label">Événement associé</label>
-                                    <select class="form-select @error('id_evenement') is-invalid @enderror"
-                                            id="id_evenement" name="id_evenement">
-                                        <option value="">Aucun événement</option>
-                                        @foreach($events as $event)
-                                            <option value="{{ $event->id }}" {{ old('id_evenement', $task->id_evenement) == $event->id ? 'selected' : '' }}>
-                                                {{ $event->titre }} - {{ $event->date_debut->format('d/m/Y') }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('id_evenement')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ route('tasks.show', $task) }}" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle me-2"></i>Annuler
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-2"></i>Mettre à jour
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <!-- Informations actuelles -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>État actuel</h6>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <small class="text-muted">Créée le :</small>
-                        <div>{{ $task->created_at->format('d/m/Y à H:i') }}</div>
-                    </div>
-                    <div class="mb-3">
-                        <small class="text-muted">Dernière modification :</small>
-                        <div>{{ $task->updated_at->format('d/m/Y à H:i') }}</div>
-                    </div>
-                    <div class="mb-3">
-                        <small class="text-muted">Statut actuel :</small>
-                        <div>
-                            <span class="badge bg-{{ $task->statut === 'termine' ? 'success' : ($task->statut === 'en_cours' ? 'primary' : 'secondary') }}">
-                                {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
-                            </span>
-                        </div>
-                    </div>
-                    <div>
-                        <small class="text-muted">Progression actuelle :</small>
-                        <div class="progress mt-1" style="height: 6px;">
-                            <div class="progress-bar bg-primary" style="width: {{ $task->progression }}%"></div>
-                        </div>
-                        <small class="text-muted">{{ $task->progression }}%</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Zone de danger -->
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Zone de danger</h6>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-3">Actions irréversibles disponibles pour cette tâche.</p>
-                    <button class="btn btn-outline-danger w-100" onclick="deleteTask({{ $task->id }})">
-                        <i class="bi bi-trash me-2"></i>Supprimer la tâche
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
-
-@push('scripts')
-<script>
-// Mettre à jour la valeur de progression affichée
-function updateProgressValue(value) {
-    document.getElementById('progressValue').textContent = value;
-
-    // Ajuster automatiquement le statut selon la progression
-    const statutSelect = document.getElementById('statut');
-    if (value == 0) {
-        statutSelect.value = 'a_faire';
-    } else if (value == 100) {
-        statutSelect.value = 'termine';
-    } else if (statutSelect.value === 'a_faire') {
-        statutSelect.value = 'en_cours';
-    }
-}
-
-// Supprimer une tâche
-function deleteTask(taskId) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.')) {
-        fetch(`/tasks/${taskId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.href = '/tasks';
-            } else {
-                alert('Erreur lors de la suppression');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            alert('Erreur lors de la suppression');
-        });
-    }
-}
-
-// Ajuster automatiquement le statut quand la progression change
-document.getElementById('progression').addEventListener('input', function() {
-    updateProgressValue(this.value);
-});
-
-// Ajuster automatiquement la progression quand le statut change
-document.getElementById('statut').addEventListener('change', function() {
-    const progressSlider = document.getElementById('progression');
-    if (this.value === 'a_faire') {
-        progressSlider.value = 0;
-        updateProgressValue(0);
-    } else if (this.value === 'termine') {
-        progressSlider.value = 100;
-        updateProgressValue(100);
+        }, 4000);
     }
 });
 </script>

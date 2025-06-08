@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Project;
@@ -61,9 +63,15 @@ class TaskController extends Controller
             ]);
         }
 
-        // Tri
+        // Tri sécurisé
         $sortBy = $request->input('sort_by', 'date_echeance');
         $sortOrder = $request->input('sort_order', 'asc');
+
+        $allowedSortFields = ['date_echeance', 'priorite', 'statut', 'titre', 'created_at'];
+        if (!in_array($sortBy, $allowedSortFields)) {
+            $sortBy = 'date_echeance';
+        }
+
         $query->orderBy($sortBy, $sortOrder);
 
         $tasks = $query->paginate(15)->withQueryString();
@@ -72,15 +80,19 @@ class TaskController extends Controller
         $users = Auth::user()->role === 'admin' ? User::where('statut', 'actif')->get() : collect();
         $projects = Project::where('statut', '!=', 'termine')->get();
 
-        // Statistiques
+        // Statistiques corrigées
+        $baseStatsQuery = Auth::user()->role === 'admin'
+            ? Task::query()
+            : Task::where('id_utilisateur', Auth::id());
+
         $stats = [
-            'total' => $query->count(),
-            'a_faire' => Task::where('statut', 'a_faire')->count(),
-            'en_cours' => Task::where('statut', 'en_cours')->count(),
-            'termine' => Task::where('statut', 'termine')->count(),
-            'en_retard' => Task::where('date_echeance', '<', Carbon::today())
-                              ->whereIn('statut', ['a_faire', 'en_cours'])
-                              ->count()
+            'total' => (clone $baseStatsQuery)->count(),
+            'a_faire' => (clone $baseStatsQuery)->where('statut', 'a_faire')->count(),
+            'en_cours' => (clone $baseStatsQuery)->where('statut', 'en_cours')->count(),
+            'termine' => (clone $baseStatsQuery)->where('statut', 'termine')->count(),
+            'en_retard' => (clone $baseStatsQuery)->where('date_echeance', '<', Carbon::today())
+                                                  ->whereIn('statut', ['a_faire', 'en_cours'])
+                                                  ->count()
         ];
 
         return view('tasks.index', compact('tasks', 'users', 'projects', 'stats'));
@@ -100,7 +112,13 @@ class TaskController extends Controller
         $projects = Project::where('statut', '!=', 'termine')->get();
         $events = Event::where('statut', 'planifie')->get();
 
-        return view('tasks.create', compact('users', 'projects', 'events'));
+        // ✅ CORRECTION: Ajout des statistiques pour la vue
+        $stats = [
+            'a_faire' => Task::where('statut', 'a_faire')->count(),
+            'en_cours' => Task::where('statut', 'en_cours')->count(),
+        ];
+
+        return view('tasks.create', compact('users', 'projects', 'events', 'stats'));
     }
 
     /**
@@ -123,21 +141,49 @@ class TaskController extends Controller
             'id_evenement' => 'nullable|exists:events,id'
         ], [
             'titre.required' => 'Le titre est obligatoire.',
+            'titre.max' => 'Le titre ne peut pas dépasser 255 caractères.',
             'description.required' => 'La description est obligatoire.',
             'date_echeance.required' => 'La date d\'échéance est obligatoire.',
             'date_echeance.after_or_equal' => 'La date d\'échéance doit être aujourd\'hui ou dans le futur.',
             'priorite.required' => 'La priorité est obligatoire.',
+            'priorite.in' => 'La priorité doit être basse, moyenne ou haute.',
             'id_utilisateur.required' => 'L\'assignation à un utilisateur est obligatoire.',
-            'id_utilisateur.exists' => 'L\'utilisateur sélectionné n\'existe pas.'
+            'id_utilisateur.exists' => 'L\'utilisateur sélectionné n\'existe pas.',
+            'id_projet.exists' => 'Le projet sélectionné n\'existe pas.',
+            'id_evenement.exists' => 'L\'événement sélectionné n\'existe pas.'
         ]);
 
         $validatedData['statut'] = 'a_faire';
         $validatedData['progression'] = 0;
 
-        $task = Task::create($validatedData);
+        // ✅ CORRECTION: Gestion d'erreurs avec transaction
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('tasks.index')
-                        ->with('success', 'Tâche créée avec succès.');
+            $task = Task::create($validatedData);
+
+            // Log de l'activité
+            Log::info('Nouvelle tâche créée', [
+                'task_id' => $task->id,
+                'created_by' => Auth::id(),
+                'assigned_to' => $validatedData['id_utilisateur']
+            ]);
+
+            DB::commit();
+
+            // ✅ Message plus informatif
+            $assignedUser = User::find($validatedData['id_utilisateur']);
+            return redirect()->route('tasks.index')
+                           ->with('success', 'Tâche créée avec succès et assignée à ' . $assignedUser->prenom . ' ' . $assignedUser->nom . '.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Erreur création tâche', ['error' => $e->getMessage()]);
+
+            return redirect()->back()
+                           ->withInput()
+                           ->with('error', 'Une erreur est survenue lors de la création de la tâche. Veuillez réessayer.');
+        }
     }
 
     /**
@@ -192,12 +238,50 @@ class TaskController extends Controller
             'id_utilisateur' => 'required|exists:users,id',
             'id_projet' => 'nullable|exists:projects,id',
             'id_evenement' => 'nullable|exists:events,id'
+        ], [
+            'titre.required' => 'Le titre est obligatoire.',
+            'description.required' => 'La description est obligatoire.',
+            'date_echeance.required' => 'La date d\'échéance est obligatoire.',
+            'priorite.required' => 'La priorité est obligatoire.',
+            'statut.required' => 'Le statut est obligatoire.',
+            'progression.required' => 'La progression est obligatoire.',
+            'progression.integer' => 'La progression doit être un nombre entier.',
+            'progression.min' => 'La progression ne peut pas être négative.',
+            'progression.max' => 'La progression ne peut pas dépasser 100%.',
+            'id_utilisateur.required' => 'L\'assignation est obligatoire.',
+            'id_utilisateur.exists' => 'L\'utilisateur sélectionné n\'existe pas.'
         ]);
 
-        $task->update($validatedData);
+        // ✅ CORRECTION: Gestion d'erreurs avec transaction
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('tasks.index')
-                        ->with('success', 'Tâche mise à jour avec succès.');
+            $oldAssignee = $task->id_utilisateur;
+            $task->update($validatedData);
+
+            // Log si changement d'assignation
+            if ($oldAssignee !== $validatedData['id_utilisateur']) {
+                Log::info('Tâche réassignée', [
+                    'task_id' => $task->id,
+                    'old_assignee' => $oldAssignee,
+                    'new_assignee' => $validatedData['id_utilisateur'],
+                    'updated_by' => Auth::id()
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('tasks.index')
+                           ->with('success', 'Tâche mise à jour avec succès.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Erreur mise à jour tâche', ['error' => $e->getMessage()]);
+
+            return redirect()->back()
+                           ->withInput()
+                           ->with('error', 'Une erreur est survenue lors de la mise à jour.');
+        }
     }
 
     /**
@@ -222,13 +306,62 @@ class TaskController extends Controller
             $validatedData['progression'] = 100;
         }
 
-        $task->update($validatedData);
+        try {
+            $task->update($validatedData);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Statut mis à jour avec succès.',
-            'task' => $task->load(['utilisateur', 'projet'])
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Statut mis à jour avec succès.',
+                'task' => $task->load(['utilisateur', 'projet'])
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur mise à jour statut', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du statut.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Marquer une tâche comme terminée rapidement
+     */
+    public function markCompleted(Task $task)
+    {
+        if (Auth::user()->role !== 'admin' && $task->id_utilisateur !== Auth::id()) {
+            abort(403, 'Vous ne pouvez modifier que vos propres tâches.');
+        }
+
+        try {
+            $task->update([
+                'statut' => 'termine',
+                'progression' => 100
+            ]);
+
+            // ✅ CORRECTION: Support JSON et web
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Tâche marquée comme terminée.'
+                ]);
+            }
+
+            return back()->with('success', 'Tâche marquée comme terminée.');
+
+        } catch (\Exception $e) {
+            Log::error('Erreur completion tâche', ['error' => $e->getMessage()]);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur lors de la mise à jour.'
+                ], 500);
+            }
+
+            return back()->with('error', 'Erreur lors de la mise à jour.');
+        }
     }
 
     /**
@@ -241,10 +374,29 @@ class TaskController extends Controller
             abort(403, 'Seuls les administrateurs peuvent supprimer les tâches.');
         }
 
-        $task->delete();
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('tasks.index')
-                        ->with('success', 'Tâche supprimée avec succès.');
+            $taskTitle = $task->titre;
+            $task->delete();
+
+            Log::info('Tâche supprimée', [
+                'task_title' => $taskTitle,
+                'deleted_by' => Auth::id()
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('tasks.index')
+                           ->with('success', 'Tâche "' . $taskTitle . '" supprimée avec succès.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Erreur suppression tâche', ['error' => $e->getMessage()]);
+
+            return redirect()->back()
+                           ->with('error', 'Erreur lors de la suppression de la tâche.');
+        }
     }
 
     /**
@@ -271,9 +423,14 @@ class TaskController extends Controller
                 'priorite' => $task->priorite,
                 'progression' => $task->progression,
                 'date_echeance' => $task->date_echeance->format('Y-m-d'),
-                'utilisateur' => $task->utilisateur->prenom . ' ' . $task->utilisateur->nom,
+                // ✅ CORRECTION: Gestion utilisateur null
+                'utilisateur' => $task->utilisateur ?
+                    $task->utilisateur->prenom . ' ' . $task->utilisateur->nom :
+                    'Non assigné',
                 'projet' => $task->projet ? $task->projet->nom : null,
-                'can_edit' => Auth::user()->role === 'admin' || $task->id_utilisateur === Auth::id()
+                'can_edit' => Auth::user()->role === 'admin' || $task->id_utilisateur === Auth::id(),
+                'is_overdue' => $task->date_echeance < Carbon::today() &&
+                               in_array($task->statut, ['a_faire', 'en_cours'])
             ];
         });
 
@@ -281,24 +438,7 @@ class TaskController extends Controller
     }
 
     /**
-     * Marquer une tâche comme terminée rapidement
-     */
-    public function markCompleted(Task $task)
-    {
-        if (Auth::user()->role !== 'admin' && $task->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez modifier que vos propres tâches.');
-        }
-
-        $task->update([
-            'statut' => 'termine',
-            'progression' => 100
-        ]);
-
-        return back()->with('success', 'Tâche marquée comme terminée.');
-    }
-
-    /**
-     * Obtenir les tâches d'un utilisateur pour le calendrier
+     * Obtenir les tâches pour le calendrier
      */
     public function calendar(Request $request)
     {
@@ -329,11 +469,16 @@ class TaskController extends Controller
                 'backgroundColor' => $color,
                 'borderColor' => $color,
                 'textColor' => '#ffffff',
+                'url' => route('tasks.show', $task),
                 'extendedProps' => [
                     'description' => $task->description,
                     'statut' => $task->statut,
                     'priorite' => $task->priorite,
-                    'progression' => $task->progression
+                    'progression' => $task->progression,
+                    // ✅ CORRECTION: Gestion utilisateur null
+                    'utilisateur' => $task->utilisateur ?
+                        $task->utilisateur->prenom . ' ' . $task->utilisateur->nom :
+                        'Non assigné'
                 ]
             ];
         });

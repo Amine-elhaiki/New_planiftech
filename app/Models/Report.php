@@ -10,7 +10,7 @@ class Report extends Model
 {
     use HasFactory;
 
-protected $table = 'rapports';
+protected $table = 'reports';
 
     protected $fillable = [
         'titre',

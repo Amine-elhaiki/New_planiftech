@@ -124,27 +124,37 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    /*
+  /*
     |--------------------------------------------------------------------------
-    | Gestion des tâches
+    | Gestion des tâches - ORDRE CORRIGÉ
     |--------------------------------------------------------------------------
     */
     Route::prefix('tasks')->name('tasks.')->group(function () {
-        Route::get('/', [TaskController::class, 'index'])->name('index');
-        Route::get('/{task}', [TaskController::class, 'show'])->name('show');
 
-        // Actions pour tous les utilisateurs
-        Route::patch('/{task}/status', [TaskController::class, 'updateStatus'])->name('update-status');
-        Route::patch('/{task}/complete', [TaskController::class, 'markCompleted'])->name('complete');
-
-        // API et vues spéciales
+        // ✅ ROUTES SPÉCIALES EN PREMIER (avant les routes avec paramètres)
         Route::get('/api/list', [TaskController::class, 'api'])->name('api');
         Route::get('/calendar/data', [TaskController::class, 'calendar'])->name('calendar');
 
-        // Routes admin uniquement
+        // Routes admin uniquement - AVANT les routes avec {task}
         Route::middleware('admin')->group(function () {
             Route::get('/create', [TaskController::class, 'create'])->name('create');
             Route::post('/', [TaskController::class, 'store'])->name('store');
+        });
+
+        // ✅ ROUTES GÉNÉRALES
+        Route::get('/', [TaskController::class, 'index'])->name('index');
+
+        // ✅ ROUTES AVEC PARAMÈTRES EN DERNIER
+        Route::get('/{task}', [TaskController::class, 'show'])->name('show');
+
+        // Actions pour tous les utilisateurs sur leurs tâches
+        Route::patch('/{task}/status', [TaskController::class, 'updateStatus'])->name('update-status');
+        Route::patch('/{task}/complete', [TaskController::class, 'markCompleted'])->name('complete');
+        // Dans la section des routes d'événements, ajoutez :
+
+
+        // Routes admin pour modification/suppression - APRÈS show
+        Route::middleware('admin')->group(function () {
             Route::get('/{task}/edit', [TaskController::class, 'edit'])->name('edit');
             Route::put('/{task}', [TaskController::class, 'update'])->name('update');
             Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');

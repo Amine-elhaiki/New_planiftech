@@ -9,7 +9,7 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $table = 'projets';
+    protected $table = 'projects';
 
     protected $fillable = [
         'nom',
@@ -43,13 +43,12 @@ class Project extends Model
     }
 
     // Méthodes utilitaires
-    public function calculateProgress()
+    public function getPourcentageAvancementAttribute()
     {
-        $totalTasks = $this->taches->count();
-        if ($totalTasks === 0) {
-            return 0;
-        }
-        $completedTasks = $this->taches->where('statut', 'termine')->count();
-        return round(($completedTasks / $totalTasks) * 100, 1);
+        $totalTaches = $this->taches()->count();
+        if ($totalTaches === 0) return 0;
+
+        $tachesTerminees = $this->taches()->where('statut', 'termine')->count();
+        return round(($tachesTerminees / $totalTaches) * 100, 2);
     }
 }

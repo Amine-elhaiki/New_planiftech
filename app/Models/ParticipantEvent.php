@@ -14,10 +14,10 @@ class ParticipantEvent extends Model
     protected $fillable = [
         'id_evenement',
         'id_utilisateur',
-        'statut_presence'
+        'statut_presence',
     ];
 
-    // Statuts de présence autorisés
+    // Constantes pour les statuts de présence
     public static $statutsPresence = [
         'invite' => 'Invité',
         'confirme' => 'Confirmé',
@@ -26,86 +26,56 @@ class ParticipantEvent extends Model
         'absent' => 'Absent'
     ];
 
-    /**
-     * Relation avec l'événement
-     */
+    // Relations
     public function evenement()
     {
         return $this->belongsTo(Event::class, 'id_evenement');
     }
 
-    /**
-     * Relation avec l'utilisateur
-     */
     public function utilisateur()
     {
         return $this->belongsTo(User::class, 'id_utilisateur');
     }
 
-    /**
-     * Accesseur pour le nom du statut de présence
-     */
+    // Accesseurs
     public function getStatutPresenceNomAttribute()
     {
         return self::$statutsPresence[$this->statut_presence] ?? $this->statut_presence;
     }
 
-    /**
-     * Accesseur pour la classe CSS du statut
-     */
     public function getClasseStatutAttribute()
     {
-        $classes = [
-            'invite' => 'text-info',
-            'confirme' => 'text-success',
-            'decline' => 'text-danger',
-            'present' => 'text-success',
-            'absent' => 'text-muted'
-        ];
-
-        return $classes[$this->statut_presence] ?? 'text-secondary';
+        return match($this->statut_presence) {
+            'confirme', 'present' => 'bg-success',
+            'decline', 'absent' => 'bg-danger',
+            'invite' => 'bg-warning',
+            default => 'bg-secondary'
+        };
     }
 
-    /**
-     * Accesseur pour l'icône du statut
-     */
     public function getIconeStatutAttribute()
     {
-        $icones = [
-            'invite' => 'bi-envelope',
-            'confirme' => 'bi-check-circle',
-            'decline' => 'bi-x-circle',
-            'present' => 'bi-person-check',
-            'absent' => 'bi-person-x'
-        ];
-
-        return $icones[$this->statut_presence] ?? 'bi-question-circle';
+        return match($this->statut_presence) {
+            'confirme', 'present' => 'bi-check-circle',
+            'decline', 'absent' => 'bi-x-circle',
+            'invite' => 'bi-clock',
+            default => 'bi-question-circle'
+        };
     }
 
-    /**
-     * Scope pour filtrer par statut de présence
-     */
-    public function scopeParStatut($query, $statut)
-    {
-        if ($statut) {
-            return $query->where('statut_presence', $statut);
-        }
-        return $query;
-    }
-
-    /**
-     * Scope pour les participants confirmés
-     */
+    // Scopes
     public function scopeConfirmes($query)
     {
         return $query->where('statut_presence', 'confirme');
     }
 
-    /**
-     * Scope pour les participants présents
-     */
     public function scopePresents($query)
     {
         return $query->where('statut_presence', 'present');
+    }
+
+    public function scopeEnAttente($query)
+    {
+        return $query->where('statut_presence', 'invite');
     }
 }
