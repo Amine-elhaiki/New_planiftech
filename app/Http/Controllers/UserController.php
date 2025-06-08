@@ -18,14 +18,16 @@ class UserController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('admin'); // Middleware personnalisé pour vérifier le rôle admin
+        // Supprimer le middleware admin global - on le gère méthode par méthode
     }
 
     /**
      * Afficher la liste des utilisateurs
+     * Accessible aux admins ET techniciens (lecture seule pour techniciens)
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
         $query = User::query();
 
         // Filtres de recherche
@@ -39,11 +41,16 @@ class UserController extends Controller
             });
         }
 
+        // Si technicien, limiter aux utilisateurs actifs seulement
+        if ($user->role === 'technicien') {
+            $query->where('statut', 'actif');
+        }
+
         if ($request->filled('role')) {
             $query->where('role', $request->input('role'));
         }
 
-        if ($request->filled('statut')) {
+        if ($request->filled('statut') && $user->role === 'admin') {
             $query->where('statut', $request->input('statut'));
         }
 
@@ -54,42 +61,61 @@ class UserController extends Controller
 
         $users = $query->paginate(15)->withQueryString();
 
-        // Ajouter les statistiques pour chaque utilisateur
-        foreach ($users as $user) {
-            $user->stats = [
-                'tasks_total' => Task::where('id_utilisateur', $user->id)->count(),
-                'tasks_completed' => Task::where('id_utilisateur', $user->id)->where('statut', 'termine')->count(),
-                'events_organized' => Event::where('id_organisateur', $user->id)->count(),
-                'projects_responsible' => Project::where('id_responsable', $user->id)->count(),
-                'reports_submitted' => Report::where('id_utilisateur', $user->id)->count()
+        // Ajouter les statistiques pour chaque utilisateur (seulement pour admin)
+        if ($user->role === 'admin') {
+            foreach ($users as $userItem) {
+                $userItem->stats = [
+                    'tasks_total' => Task::where('id_utilisateur', $userItem->id)->count(),
+                    'tasks_completed' => Task::where('id_utilisateur', $userItem->id)->where('statut', 'termine')->count(),
+                    'events_organized' => Event::where('id_organisateur', $userItem->id)->count(),
+                    'projects_responsible' => Project::where('id_responsable', $userItem->id)->count(),
+                    'reports_submitted' => Report::where('id_utilisateur', $userItem->id)->count()
+                ];
+            }
+        }
+
+        // Statistiques générales (différentes selon le rôle)
+        if ($user->role === 'admin') {
+            $globalStats = [
+                'total_users' => User::count(),
+                'active_users' => User::where('statut', 'actif')->count(),
+                'inactive_users' => User::where('statut', 'inactif')->count(),
+                'admin_users' => User::where('role', 'admin')->count(),
+                'technician_users' => User::where('role', 'technicien')->count()
+            ];
+        } else {
+            $globalStats = [
+                'total_users' => User::where('statut', 'actif')->count(),
+                'active_users' => User::where('statut', 'actif')->count(),
+                'technician_users' => User::where('role', 'technicien')->where('statut', 'actif')->count(),
+                'admin_users' => User::where('role', 'admin')->where('statut', 'actif')->count()
             ];
         }
 
-        // Statistiques générales
-        $globalStats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('statut', 'actif')->count(),
-            'inactive_users' => User::where('statut', 'inactif')->count(),
-            'admin_users' => User::where('role', 'admin')->count(),
-            'technician_users' => User::where('role', 'technicien')->count()
-        ];
+        // Vue différente selon le rôle
+        $viewName = $user->role === 'admin' ? 'users.index' : 'users.index-readonly';
 
-        return view('users.index', compact('users', 'globalStats'));
+        return view($viewName, compact('users', 'globalStats'));
     }
 
     /**
      * Afficher le formulaire de création
+     * ADMIN SEULEMENT
      */
     public function create()
     {
+        $this->ensureAdmin();
         return view('users.create');
     }
 
     /**
      * Enregistrer un nouvel utilisateur
+     * ADMIN SEULEMENT
      */
     public function store(Request $request)
     {
+        $this->ensureAdmin();
+
         $validatedData = $request->validate([
             'nom' => 'required|string|max:100',
             'prenom' => 'required|string|max:100',
@@ -123,74 +149,104 @@ class UserController extends Controller
 
     /**
      * Afficher un utilisateur spécifique
+     * Accessible aux admins ET techniciens
      */
     public function show(User $user)
     {
-        // Charger les relations
-        $user->load([
-            'taches' => function($query) {
-                $query->latest()->limit(10);
-            },
-            'evenementsOrganises' => function($query) {
-                $query->latest()->limit(5);
-            },
-            'projetsResponsable' => function($query) {
-                $query->latest()->limit(5);
-            },
-            'rapports' => function($query) {
-                $query->latest()->limit(5);
+        $currentUser = Auth::user();
+
+        // Si technicien, peut seulement voir son propre profil ou autres utilisateurs actifs
+        if ($currentUser->role === 'technicien') {
+            if ($user->id !== $currentUser->id && $user->statut !== 'actif') {
+                abort(403, 'Accès non autorisé.');
             }
-        ]);
+        }
 
-        // Statistiques détaillées
-        $detailedStats = [
-            'tasks' => [
-                'total' => Task::where('id_utilisateur', $user->id)->count(),
-                'a_faire' => Task::where('id_utilisateur', $user->id)->where('statut', 'a_faire')->count(),
-                'en_cours' => Task::where('id_utilisateur', $user->id)->where('statut', 'en_cours')->count(),
-                'termine' => Task::where('id_utilisateur', $user->id)->where('statut', 'termine')->count(),
-                'en_retard' => Task::where('id_utilisateur', $user->id)
-                                  ->where('date_echeance', '<', now())
-                                  ->whereIn('statut', ['a_faire', 'en_cours'])
-                                  ->count()
-            ],
-            'events' => [
-                'organized' => Event::where('id_organisateur', $user->id)->count(),
-                'participated' => 0 // Simplified for now
-            ],
-            'projects' => [
-                'responsible' => Project::where('id_responsable', $user->id)->count(),
-                'involved' => Project::whereHas('taches', function($q) use ($user) {
-                    $q->where('id_utilisateur', $user->id);
-                })->distinct()->count()
-            ],
-            'reports' => [
-                'total' => Report::where('id_utilisateur', $user->id)->count(),
-                'this_month' => Report::where('id_utilisateur', $user->id)
-                                    ->whereMonth('date_creation', now()->month)
-                                    ->count()
-            ]
-        ];
+        // Charger les relations (limitées pour techniciens)
+        if ($currentUser->role === 'admin') {
+            $user->load([
+                'taches' => function($query) {
+                    $query->latest()->limit(10);
+                },
+                'evenementsOrganises' => function($query) {
+                    $query->latest()->limit(5);
+                },
+                'projetsResponsable' => function($query) {
+                    $query->latest()->limit(5);
+                },
+                'rapports' => function($query) {
+                    $query->latest()->limit(5);
+                }
+            ]);
 
-        // Activité récente
-        $recentActivity = $this->getUserRecentActivity($user);
+            // Statistiques détaillées pour admin
+            $detailedStats = [
+                'tasks' => [
+                    'total' => Task::where('id_utilisateur', $user->id)->count(),
+                    'a_faire' => Task::where('id_utilisateur', $user->id)->where('statut', 'a_faire')->count(),
+                    'en_cours' => Task::where('id_utilisateur', $user->id)->where('statut', 'en_cours')->count(),
+                    'termine' => Task::where('id_utilisateur', $user->id)->where('statut', 'termine')->count(),
+                    'en_retard' => Task::where('id_utilisateur', $user->id)
+                                      ->where('date_echeance', '<', now())
+                                      ->whereIn('statut', ['a_faire', 'en_cours'])
+                                      ->count()
+                ],
+                'events' => [
+                    'organized' => Event::where('id_organisateur', $user->id)->count(),
+                    'participated' => 0
+                ],
+                'projects' => [
+                    'responsible' => Project::where('id_responsable', $user->id)->count(),
+                    'involved' => Project::whereHas('taches', function($q) use ($user) {
+                        $q->where('id_utilisateur', $user->id);
+                    })->distinct()->count()
+                ],
+                'reports' => [
+                    'total' => Report::where('id_utilisateur', $user->id)->count(),
+                    'this_month' => Report::where('id_utilisateur', $user->id)
+                                        ->whereMonth('date_creation', now()->month)
+                                        ->count()
+                ]
+            ];
 
-        return view('users.show', compact('user', 'detailedStats', 'recentActivity'));
+            $recentActivity = $this->getUserRecentActivity($user);
+            $viewName = 'users.show';
+        } else {
+            // Vue simplifiée pour techniciens
+            $detailedStats = [
+                'tasks' => [
+                    'total' => Task::where('id_utilisateur', $user->id)->count(),
+                    'termine' => Task::where('id_utilisateur', $user->id)->where('statut', 'termine')->count(),
+                ],
+                'reports' => [
+                    'total' => Report::where('id_utilisateur', $user->id)->count(),
+                ]
+            ];
+            $recentActivity = [];
+            $viewName = 'users.show-readonly';
+        }
+
+        return view($viewName, compact('user', 'detailedStats', 'recentActivity'));
     }
 
     /**
      * Afficher le formulaire d'édition
+     * ADMIN SEULEMENT
      */
     public function edit(User $user)
     {
+        $this->ensureAdmin();
         return view('users.edit', compact('user'));
     }
 
     /**
      * Mettre à jour un utilisateur
+     * ADMIN SEULEMENT
      */
     public function update(Request $request, User $user)
     {
+        $this->ensureAdmin();
+
         $validatedData = $request->validate([
             'nom' => 'required|string|max:100',
             'prenom' => 'required|string|max:100',
@@ -214,9 +270,12 @@ class UserController extends Controller
 
     /**
      * Changer le mot de passe d'un utilisateur
+     * ADMIN SEULEMENT
      */
     public function updatePassword(Request $request, User $user)
     {
+        $this->ensureAdmin();
+
         $validatedData = $request->validate([
             'password' => 'required|string|min:8|confirmed'
         ], [
@@ -234,10 +293,12 @@ class UserController extends Controller
 
     /**
      * Activer/Désactiver un utilisateur
+     * ADMIN SEULEMENT
      */
     public function toggleStatus(User $user)
     {
-        // Empêcher la désactivation de son propre compte
+        $this->ensureAdmin();
+
         if ($user->id === Auth::id()) {
             return back()->withErrors(['error' => 'Vous ne pouvez pas modifier votre propre statut.']);
         }
@@ -252,15 +313,16 @@ class UserController extends Controller
 
     /**
      * Supprimer un utilisateur
+     * ADMIN SEULEMENT
      */
     public function destroy(User $user)
     {
-        // Empêcher la suppression de son propre compte
+        $this->ensureAdmin();
+
         if ($user->id === Auth::id()) {
             return back()->withErrors(['error' => 'Vous ne pouvez pas supprimer votre propre compte.']);
         }
 
-        // Vérifier s'il y a des données liées
         $hasData = Task::where('id_utilisateur', $user->id)->exists() ||
                    Event::where('id_organisateur', $user->id)->exists() ||
                    Project::where('id_responsable', $user->id)->exists() ||
@@ -278,12 +340,14 @@ class UserController extends Controller
 
     /**
      * Exporter la liste des utilisateurs
+     * ADMIN SEULEMENT
      */
     public function export(Request $request)
     {
+        $this->ensureAdmin();
+
         $query = User::query();
 
-        // Appliquer les mêmes filtres que l'index
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function($q) use ($search) {
@@ -326,76 +390,44 @@ class UserController extends Controller
     }
 
     /**
-     * Obtenir l'activité récente d'un utilisateur
+     * Recherche d'utilisateurs (API)
+     * Accessible aux admins ET techniciens
      */
-    private function getUserRecentActivity(User $user, $limit = 15)
+    public function search(Request $request)
     {
-        $activities = collect();
+        $query = $request->input('q', '');
 
-        // Tâches récentes
-        $recentTasks = Task::where('id_utilisateur', $user->id)
-                          ->latest('date_modification')
-                          ->limit($limit)
-                          ->get()
-                          ->map(function($task) {
-                              return [
-                                  'type' => 'task',
-                                  'action' => 'Tâche mise à jour',
-                                  'description' => $task->titre,
-                                  'status' => $task->statut,
-                                  'date' => $task->date_modification,
-                                  'icon' => 'bi-list-check',
-                                  'color' => 'primary'
-                              ];
-                          });
+        if (strlen($query) < 2) {
+            return response()->json([]);
+        }
 
-        // Événements organisés récents
-        $recentEvents = Event::where('id_organisateur', $user->id)
-                            ->latest('date_modification')
-                            ->limit($limit)
-                            ->get()
-                            ->map(function($event) {
-                                return [
-                                    'type' => 'event',
-                                    'action' => 'Événement organisé',
-                                    'description' => $event->titre,
-                                    'status' => $event->statut,
-                                    'date' => $event->date_modification,
-                                    'icon' => 'bi-calendar-event',
-                                    'color' => 'success'
-                                ];
-                            });
+        $userQuery = User::where('statut', 'actif')
+                        ->where(function($q) use ($query) {
+                            $q->where('nom', 'like', "%{$query}%")
+                              ->orWhere('prenom', 'like', "%{$query}%")
+                              ->orWhere('email', 'like', "%{$query}%");
+                        })
+                        ->limit(10);
 
-        // Rapports récents
-        $recentReports = Report::where('id_utilisateur', $user->id)
-                              ->latest('date_creation')
-                              ->limit($limit)
-                              ->get()
-                              ->map(function($report) {
-                                  return [
-                                      'type' => 'report',
-                                      'action' => 'Rapport soumis',
-                                      'description' => $report->titre,
-                                      'status' => 'soumis',
-                                      'date' => $report->date_creation,
-                                      'icon' => 'bi-file-text',
-                                      'color' => 'info'
-                                  ];
-                              });
+        $users = $userQuery->get(['id', 'nom', 'prenom', 'email', 'role']);
 
-        return $activities->concat($recentTasks)
-                         ->concat($recentEvents)
-                         ->concat($recentReports)
-                         ->sortByDesc('date')
-                         ->take($limit)
-                         ->values();
+        return response()->json($users->map(function($user) {
+            return [
+                'id' => $user->id,
+                'text' => $user->prenom . ' ' . $user->nom . ' (' . $user->email . ')',
+                'role' => $user->role
+            ];
+        }));
     }
 
     /**
      * Statistiques globales des utilisateurs
+     * ADMIN SEULEMENT
      */
     public function statistics()
     {
+        $this->ensureAdmin();
+
         $stats = [
             'users_by_role' => User::selectRaw('role, COUNT(*) as count')
                                   ->groupBy('role')
@@ -429,47 +461,91 @@ class UserController extends Controller
 
     /**
      * Réinitialiser le mot de passe d'un utilisateur
+     * ADMIN SEULEMENT
      */
     public function resetPassword(User $user)
     {
+        $this->ensureAdmin();
+
         $temporaryPassword = Str::random(10);
 
         $user->update([
             'password' => Hash::make($temporaryPassword)
         ]);
 
-        // Dans un vrai projet, vous enverriez le mot de passe par email
-        // Pour la démo, on l'affiche dans le message de succès
-
         return back()->with('success', "Mot de passe réinitialisé. Nouveau mot de passe temporaire : {$temporaryPassword}");
     }
 
     /**
-     * Recherche d'utilisateurs (API)
+     * Méthode privée pour vérifier si l'utilisateur est admin
      */
-    public function search(Request $request)
+    private function ensureAdmin()
     {
-        $query = $request->input('q', '');
-
-        if (strlen($query) < 2) {
-            return response()->json([]);
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Accès refusé. Seuls les administrateurs peuvent effectuer cette action.');
         }
+    }
 
-        $users = User::where('statut', 'actif')
-                    ->where(function($q) use ($query) {
-                        $q->where('nom', 'like', "%{$query}%")
-                          ->orWhere('prenom', 'like', "%{$query}%")
-                          ->orWhere('email', 'like', "%{$query}%");
-                    })
-                    ->limit(10)
-                    ->get(['id', 'nom', 'prenom', 'email', 'role']);
+    /**
+     * Obtenir l'activité récente d'un utilisateur
+     */
+    private function getUserRecentActivity(User $user, $limit = 15)
+    {
+        $activities = collect();
 
-        return response()->json($users->map(function($user) {
-            return [
-                'id' => $user->id,
-                'text' => $user->prenom . ' ' . $user->nom . ' (' . $user->email . ')',
-                'role' => $user->role
-            ];
-        }));
+        $recentTasks = Task::where('id_utilisateur', $user->id)
+                          ->latest('date_modification')
+                          ->limit($limit)
+                          ->get()
+                          ->map(function($task) {
+                              return [
+                                  'type' => 'task',
+                                  'action' => 'Tâche mise à jour',
+                                  'description' => $task->titre,
+                                  'status' => $task->statut,
+                                  'date' => $task->date_modification,
+                                  'icon' => 'bi-list-check',
+                                  'color' => 'primary'
+                              ];
+                          });
+
+        $recentEvents = Event::where('id_organisateur', $user->id)
+                            ->latest('date_modification')
+                            ->limit($limit)
+                            ->get()
+                            ->map(function($event) {
+                                return [
+                                    'type' => 'event',
+                                    'action' => 'Événement organisé',
+                                    'description' => $event->titre,
+                                    'status' => $event->statut,
+                                    'date' => $event->date_modification,
+                                    'icon' => 'bi-calendar-event',
+                                    'color' => 'success'
+                                ];
+                            });
+
+        $recentReports = Report::where('id_utilisateur', $user->id)
+                              ->latest('date_creation')
+                              ->limit($limit)
+                              ->get()
+                              ->map(function($report) {
+                                  return [
+                                      'type' => 'report',
+                                      'action' => 'Rapport soumis',
+                                      'description' => $report->titre,
+                                      'status' => 'soumis',
+                                      'date' => $report->date_creation,
+                                      'icon' => 'bi-file-text',
+                                      'color' => 'info'
+                                  ];
+                              });
+
+        return $activities->concat($recentTasks)
+                         ->concat($recentEvents)
+                         ->concat($recentReports)
+                         ->sortByDesc('date')
+                         ->take($limit)
+                         ->values();
     }
 }

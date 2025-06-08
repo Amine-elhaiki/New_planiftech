@@ -96,6 +96,36 @@ Route::middleware(['auth'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Gestion des utilisateurs - ACCESSIBLE AUX DEUX RÔLES
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('users')->name('users.')->group(function () {
+        // Routes accessibles aux admins ET techniciens (lecture)
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/{user}', [UserController::class, 'show'])->name('show');
+        Route::get('/search/api', [UserController::class, 'search'])->name('search');
+
+        // Routes ADMIN SEULEMENT - modification/création
+        Route::middleware('admin')->group(function () {
+            Route::get('/create', [UserController::class, 'create'])->name('create');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+
+            // Actions spéciales admin
+            Route::patch('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
+            Route::patch('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
+            Route::patch('/{user}/update-password', [UserController::class, 'updatePassword'])->name('update-password');
+
+            // Export et statistiques admin
+            Route::get('/export/csv', [UserController::class, 'export'])->name('export');
+            Route::get('/statistics/overview', [UserController::class, 'statistics'])->name('statistics');
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Gestion des tâches
     |--------------------------------------------------------------------------
     */
@@ -197,31 +227,10 @@ Route::middleware(['auth'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Administration des utilisateurs (Admin uniquement)
+    | Administration avancée (Admin uniquement)
     |--------------------------------------------------------------------------
     */
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
-
-        // Gestion des utilisateurs
-        Route::prefix('users')->name('users.')->group(function () {
-            Route::get('/', [UserController::class, 'index'])->name('index');
-            Route::get('/create', [UserController::class, 'create'])->name('create');
-            Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::get('/{user}', [UserController::class, 'show'])->name('show');
-            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
-            Route::put('/{user}', [UserController::class, 'update'])->name('update');
-            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-
-            // Actions spéciales
-            Route::patch('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
-            Route::patch('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
-            Route::patch('/{user}/update-password', [UserController::class, 'updatePassword'])->name('update-password');
-
-            // Export et recherche
-            Route::get('/export/csv', [UserController::class, 'export'])->name('export');
-            Route::get('/search/api', [UserController::class, 'search'])->name('search');
-            Route::get('/statistics/overview', [UserController::class, 'statistics'])->name('statistics');
-        });
 
         // Journaux d'activité
         Route::get('/logs', function () {
@@ -231,7 +240,7 @@ Route::middleware(['auth'])->group(function () {
         // Tableau de bord admin
         Route::get('/dashboard', function () {
             return view('admin.dashboard');
-        })->name('admin.dashboard');
+        })->name('dashboard');
 
         // Configuration système
         Route::prefix('settings')->name('settings.')->group(function () {
@@ -265,19 +274,31 @@ Route::middleware(['auth'])->group(function () {
 
             if (strlen($query) >= 2) {
                 // Recherche dans les tâches
-                $tasks = \App\Models\Task::where('titre', 'like', "%{$query}%")
-                                        ->limit(5)
-                                        ->get(['id', 'titre', 'statut']);
+                try {
+                    $tasks = \App\Models\Task::where('titre', 'like', "%{$query}%")
+                                            ->limit(5)
+                                            ->get(['id', 'titre', 'statut']);
+                } catch (\Exception $e) {
+                    $tasks = collect();
+                }
 
                 // Recherche dans les événements
-                $events = \App\Models\Event::where('titre', 'like', "%{$query}%")
-                                          ->limit(5)
-                                          ->get(['id', 'titre', 'statut']);
+                try {
+                    $events = \App\Models\Event::where('titre', 'like', "%{$query}%")
+                                              ->limit(5)
+                                              ->get(['id', 'titre', 'statut']);
+                } catch (\Exception $e) {
+                    $events = collect();
+                }
 
                 // Recherche dans les projets
-                $projects = \App\Models\Project::where('nom', 'like', "%{$query}%")
-                                              ->limit(5)
-                                              ->get(['id', 'nom', 'statut']);
+                try {
+                    $projects = \App\Models\Project::where('nom', 'like', "%{$query}%")
+                                                  ->limit(5)
+                                                  ->get(['id', 'nom', 'statut']);
+                } catch (\Exception $e) {
+                    $projects = collect();
+                }
 
                 $results = [
                     'tasks' => $tasks,
@@ -294,17 +315,6 @@ Route::middleware(['auth'])->group(function () {
             return response()->json([]);
         })->name('notifications');
     });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Alias pour compatibilité
-    |--------------------------------------------------------------------------
-    */
-
-    // Alias pour la gestion des utilisateurs (accessible via le menu principal)
-    Route::get('/users', function () {
-        return redirect()->route('admin.users.index');
-    })->name('users.index')->middleware('admin');
 });
 
 /*
@@ -346,45 +356,3 @@ Route::fallback(function () {
 
     return view('errors.404');
 });
-Route::middleware(['auth'])->group(function () {
-
-    // Dashboard principal - redirige selon le rôle
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    // Dashboard spécifique admin
-    Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
-         ->middleware('role:admin')
-         ->name('admin.dashboard');
-
-    // Dashboard spécifique technicien
-    Route::get('/technician/dashboard', [DashboardController::class, 'technician'])
-         ->middleware('role:technicien')
-         ->name('technician.dashboard');
-
-    // Alias pour compatibilité
-    Route::get('/technicien/dashboard', [DashboardController::class, 'technician'])
-         ->middleware('role:technicien')
-         ->name('technicien.dashboard');
-});
-
-
-Route::middleware(['auth'])->group(function () {
-
-    // Routes principales pour les événements
-    Route::resource('events', EventController::class);
-
-    // Routes spécifiques pour les événements
-    Route::get('/events/calendar/data', [EventController::class, 'calendar'])->name('events.calendar');
-    Route::post('/events/{event}/participation', [EventController::class, 'updateParticipation'])->name('events.updateParticipation');
-    Route::post('/events/{event}/complete', [EventController::class, 'markCompleted'])->name('events.markCompleted');
-    Route::post('/events/{event}/cancel', [EventController::class, 'cancel'])->name('events.cancel');
-    Route::post('/events/{event}/postpone', [EventController::class, 'postpone'])->name('events.postpone');
-    Route::get('/events/{event}/duplicate', [EventController::class, 'duplicate'])->name('events.duplicate');
-    Route::get('/events/export/csv', [EventController::class, 'export'])->name('events.export');
-
-    // Routes pour les vues spécifiques
-    Route::get('/events-calendar', function() {
-        return view('events.calendar');
-    })->name('events.calendar.view');
-});
-Route::get('/events/calendar', [EventController::class, 'calendar'])->name('events.calendar');

@@ -16,7 +16,7 @@
                         <p>ORMVAT - Système de gestion des interventions</p>
                     </div>
 
-                    <form method="POST" action="{{ route('login') }}">
+                    <form method="POST" action="{{ route('login.post') }}">
                         @csrf
 
                         <div class="mb-3">
@@ -56,14 +56,6 @@
                                 <i class="bi bi-box-arrow-in-right me-1"></i>Se connecter
                             </button>
                         </div>
-
-                        @if (Route::has('password.request'))
-                            <div class="text-center mt-3">
-                                <a class="btn btn-link" href="{{ route('password.request') }}">
-                                    Mot de passe oublié ?
-                                </a>
-                            </div>
-                        @endif
                     </form>
                 </div>
             </div>
@@ -71,14 +63,74 @@
             <!-- Informations de test -->
             <div class="card mt-3">
                 <div class="card-body">
-                    <h6 class="card-title">Comptes de test</h6>
-                    <small class="text-muted">
-                        <strong>Admin :</strong> admin@ormvat.ma / admin123<br>
-                        <strong>Technicien :</strong> ahmed.bennani@ormvat.ma / technicien123
-                    </small>
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        Comptes de test
+                    </h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">
+                                <strong>Admin :</strong><br>
+                                admin@ormvat.ma<br>
+                                <span class="text-primary">password</span>
+                            </small>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">
+                                <strong>Technicien :</strong><br>
+                                tech@ormvat.ma<br>
+                                <span class="text-primary">password</span>
+                            </small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+@push('styles')
+<style>
+    .auth-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .auth-header h1 {
+        color: #007bff;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .auth-header p {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.75rem;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(45deg, #0056b3, #004085);
+        transform: translateY(-1px);
+    }
+</style>
+@endpush
 @endsection
