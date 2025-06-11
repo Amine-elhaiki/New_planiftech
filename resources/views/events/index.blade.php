@@ -526,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             eventDidMount: function(info) {
                 // Ajouter un tooltip
-                info.el.setAttribute('title', info.event.title + ' - ' + info.event.extendedProps.lieu);
+                info.el.setAttribute('title', info.event.title + ' - ' + (info.event.extendedProps.lieu || ''));
             }
         });
 
@@ -591,7 +591,7 @@ function goToListView() {
 // Fonction pour exporter
 function exportEvents() {
     var params = new URLSearchParams(window.location.search);
-    window.location.href = '/events/export?' + params.toString();
+    window.location.href = '/events/export/csv?' + params.toString();
 }
 
 // Fonction pour imprimer

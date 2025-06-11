@@ -162,29 +162,32 @@ Route::middleware(['auth'])->group(function () {
     });
 
     /*
-    |--------------------------------------------------------------------------
-    | Gestion des événements
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('events')->name('events.')->group(function () {
-        Route::get('/', [EventController::class, 'index'])->name('index');
-        Route::get('/create', [EventController::class, 'create'])->name('create');
-        Route::post('/', [EventController::class, 'store'])->name('store');
-        Route::get('/{event}', [EventController::class, 'show'])->name('show');
-        Route::get('/{event}/edit', [EventController::class, 'edit'])->name('edit');
-        Route::put('/{event}', [EventController::class, 'update'])->name('update');
-        Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
+|--------------------------------------------------------------------------
+| Gestion des événements
+|--------------------------------------------------------------------------
+*/
+Route::prefix('events')->name('events.')->group(function () {
+    Route::get('/', [EventController::class, 'index'])->name('index');
+    Route::get('/create', [EventController::class, 'create'])->name('create');
+    Route::post('/', [EventController::class, 'store'])->name('store');
+    Route::get('/{event}', [EventController::class, 'show'])->name('show');
+    Route::get('/{event}/edit', [EventController::class, 'edit'])->name('edit');
+    Route::put('/{event}', [EventController::class, 'update'])->name('update');
+    Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
 
-        // Actions spéciales pour les événements
-        Route::patch('/{event}/participation', [EventController::class, 'updateParticipation'])->name('participation');
-        Route::patch('/{event}/complete', [EventController::class, 'markCompleted'])->name('complete');
-        Route::patch('/{event}/cancel', [EventController::class, 'cancel'])->name('cancel');
-        Route::patch('/{event}/postpone', [EventController::class, 'postpone'])->name('postpone');
+    // Actions spéciales pour les événements
+    Route::patch('/{event}/participation', [EventController::class, 'updateParticipation'])->name('participation');
+    Route::post('/{event}/complete', [EventController::class, 'markCompleted'])->name('complete');
+    Route::post('/{event}/cancel', [EventController::class, 'cancel'])->name('cancel');
+    Route::post('/{event}/postpone', [EventController::class, 'postpone'])->name('postpone');
 
-        // API pour le calendrier
-        Route::get('/calendar/data', [EventController::class, 'calendar'])->name('calendar');
-    });
+    // Routes supplémentaires
+    Route::get('/{event}/duplicate', [EventController::class, 'duplicate'])->name('duplicate');
+    Route::get('/export/csv', [EventController::class, 'export'])->name('export');
 
+    // API pour le calendrier
+    Route::get('/calendar/data', [EventController::class, 'calendar'])->name('calendar');
+});
     /*
     |--------------------------------------------------------------------------
     | Gestion des projets
