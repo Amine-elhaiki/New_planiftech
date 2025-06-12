@@ -20,9 +20,9 @@ class ParticipantEvent extends Model
         'date_invitation',
         'date_reponse',
         'commentaire',
-        'notes_organisateur',
         'notification_envoyee',
-        'rappel_envoye'
+        'rappel_envoye',
+        'preferences'
     ];
 
     protected $casts = [
@@ -30,131 +30,149 @@ class ParticipantEvent extends Model
         'date_reponse' => 'datetime',
         'notification_envoyee' => 'boolean',
         'rappel_envoye' => 'boolean',
+        'preferences' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime'
     ];
 
-    // Constantes pour les énumérations
-    public static $statutsPresence = [
+    protected $dates = [
+        'date_invitation',
+        'date_reponse',
+        'created_at',
+        'updated_at',
+        'deleted_at'
+    ];
+
+    // Statuts de présence possibles
+    const STATUTS_PRESENCE = [
         'invite' => 'Invité',
         'confirme' => 'Confirmé',
         'decline' => 'Décliné',
-        'present' => 'Présent',
+        'excuse' => 'Excusé',
         'absent' => 'Absent',
-        'excuse' => 'Excusé'
+        'present' => 'Présent'
     ];
 
-    public static $rolesEvenement = [
+    // Rôles dans l'événement
+    const ROLES_EVENEMENT = [
         'organisateur' => 'Organisateur',
         'participant' => 'Participant',
         'intervenant' => 'Intervenant',
         'observateur' => 'Observateur'
     ];
 
-    // Relations
+    // RELATIONS
+
+    /**
+     * Relation avec l'événement
+     */
     public function evenement()
     {
         return $this->belongsTo(Event::class, 'id_evenement');
     }
 
+    /**
+     * Relation avec l'utilisateur participant
+     */
     public function utilisateur()
     {
         return $this->belongsTo(User::class, 'id_utilisateur');
     }
 
-    // Accesseurs
-    public function getStatutPresenceNomAttribute()
+    // ACCESSEURS
+
+    /**
+     * Obtenir le libellé du statut de présence
+     */
+    public function getStatutPresenceLibelleAttribute()
     {
-        return self::$statutsPresence[$this->statut_presence] ?? $this->statut_presence;
+        return self::STATUTS_PRESENCE[$this->statut_presence] ?? $this->statut_presence;
     }
 
-    public function getRoleEvenementNomAttribute()
+    /**
+     * Obtenir le libellé du rôle dans l'événement
+     */
+    public function getRoleEvenementLibelleAttribute()
     {
-        return self::$rolesEvenement[$this->role_evenement] ?? $this->role_evenement;
+        return self::ROLES_EVENEMENT[$this->role_evenement] ?? $this->role_evenement;
     }
 
-    public function getClasseStatutAttribute()
+    /**
+     * Vérifier si la participation est confirmée
+     */
+    public function getEstConfirmeAttribute()
     {
-        return match($this->statut_presence) {
-            'confirme', 'present' => 'bg-success text-white',
-            'decline', 'absent' => 'bg-danger text-white',
-            'invite' => 'bg-warning text-dark',
-            'excuse' => 'bg-info text-white',
-            default => 'bg-secondary text-white'
-        };
+        return $this->statut_presence === 'confirme';
     }
 
-    public function getIconeStatutAttribute()
+    /**
+     * Vérifier si la participation est déclinée
+     */
+    public function getEstDeclineAttribute()
     {
-        return match($this->statut_presence) {
-            'confirme' => 'bi-check-circle',
-            'present' => 'bi-check-circle-fill',
-            'decline' => 'bi-x-circle',
-            'absent' => 'bi-x-circle-fill',
-            'invite' => 'bi-clock',
-            'excuse' => 'bi-exclamation-circle',
-            default => 'bi-question-circle'
-        };
+        return $this->statut_presence === 'decline';
     }
 
-    // Scopes
-    public function scopeParStatut($query, $statut)
+    /**
+     * Vérifier si c'est un organisateur
+     */
+    public function getEstOrganisateurAttribute()
     {
-        return $query->where('statut_presence', $statut);
+        return $this->role_evenement === 'organisateur';
     }
 
-    public function scopeParRole($query, $role)
+    /**
+     * Obtenir les préférences par défaut
+     */
+    public function getPreferencesParDefautAttribute()
     {
-        return $query->where('role_evenement', $role);
+        return [
+            'rappel_email' => true,
+            'rappel_sms' => false,
+            'langue_preferee' => 'fr'
+        ];
     }
 
-    public function scopeConfirmes($query)
+    // MUTATEURS
+
+    /**
+     * Définir les préférences avec valeurs par défaut
+     */
+    public function setPreferencesAttribute($value)
     {
-        return $query->whereIn('statut_presence', ['confirme', 'present']);
+        $defaultPreferences = $this->preferences_par_defaut;
+        $this->attributes['preferences'] = json_encode(array_merge($defaultPreferences, $value ?? []));
     }
 
-    public function scopeEnAttente($query)
-    {
-        return $query->where('statut_presence', 'invite');
-    }
+    // MÉTHODES MÉTIER
 
-    public function scopeNotificationNonEnvoyee($query)
-    {
-        return $query->where('notification_envoyee', false);
-    }
-
-    public function scopeRappelNonEnvoye($query)
-    {
-        return $query->where('rappel_envoye', false);
-    }
-
-    // Méthodes utilitaires
-    public function marquerCommePresent()
-    {
-        $this->update([
-            'statut_presence' => 'present',
-            'date_reponse' => now()
-        ]);
-    }
-
-    public function marquerCommeAbsent()
-    {
-        $this->update([
-            'statut_presence' => 'absent',
-            'date_reponse' => now()
-        ]);
-    }
-
-    public function confirmerPresence($commentaire = null)
+    /**
+     * Confirmer la participation
+     */
+    public function confirmerParticipation($commentaire = null)
     {
         $this->update([
             'statut_presence' => 'confirme',
             'date_reponse' => now(),
             'commentaire' => $commentaire
         ]);
+
+        // Créer une notification pour l'organisateur
+        if ($this->evenement && $this->evenement->organisateur) {
+            Notification::create([
+                'titre' => 'Participation confirmée',
+                'message' => "{$this->utilisateur->nom_complet} a confirmé sa participation à l'événement '{$this->evenement->titre}'.",
+                'type' => 'evenement',
+                'destinataire_id' => $this->evenement->id_organisateur,
+                'lue' => false
+            ]);
+        }
     }
 
+    /**
+     * Décliner la participation
+     */
     public function declinerInvitation($commentaire = null)
     {
         $this->update([
@@ -162,15 +180,204 @@ class ParticipantEvent extends Model
             'date_reponse' => now(),
             'commentaire' => $commentaire
         ]);
+
+        // Créer une notification pour l'organisateur
+        if ($this->evenement && $this->evenement->organisateur) {
+            Notification::create([
+                'titre' => 'Participation déclinée',
+                'message' => "{$this->utilisateur->nom_complet} a décliné l'invitation à l'événement '{$this->evenement->titre}'.",
+                'type' => 'evenement',
+                'destinataire_id' => $this->evenement->id_organisateur,
+                'lue' => false
+            ]);
+        }
     }
 
-    public function marquerNotificationEnvoyee()
+    /**
+     * Marquer comme absent
+     */
+    public function marquerAbsent($commentaire = null)
     {
-        $this->update(['notification_envoyee' => true]);
+        $this->update([
+            'statut_presence' => 'absent',
+            'commentaire' => $commentaire
+        ]);
     }
 
-    public function marquerRappelEnvoye()
+    /**
+     * Marquer comme présent
+     */
+    public function marquerPresent($commentaire = null)
     {
-        $this->update(['rappel_envoye' => true]);
+        $this->update([
+            'statut_presence' => 'present',
+            'commentaire' => $commentaire
+        ]);
+    }
+
+    /**
+     * S'excuser pour l'événement
+     */
+    public function sexcuser($commentaire = null)
+    {
+        $this->update([
+            'statut_presence' => 'excuse',
+            'date_reponse' => now(),
+            'commentaire' => $commentaire
+        ]);
+    }
+
+    /**
+     * Envoyer une notification d'invitation
+     */
+    public function envoyerNotificationInvitation()
+    {
+        if (!$this->notification_envoyee && $this->utilisateur) {
+            Notification::create([
+                'titre' => 'Invitation à un événement',
+                'message' => "Vous êtes invité à l'événement '{$this->evenement->titre}' prévu le " .
+                           $this->evenement->date_debut->format('d/m/Y à H:i') . " à {$this->evenement->lieu}.",
+                'type' => 'evenement',
+                'destinataire_id' => $this->id_utilisateur,
+                'lue' => false
+            ]);
+
+            $this->update(['notification_envoyee' => true]);
+        }
+    }
+
+    /**
+     * Envoyer un rappel
+     */
+    public function envoyerRappel()
+    {
+        if (!$this->rappel_envoye && $this->statut_presence === 'confirme' && $this->utilisateur) {
+            $heuresAvant = $this->evenement->date_debut->diffInHours(now());
+
+            if ($heuresAvant <= 24 && $heuresAvant > 0) {
+                Notification::create([
+                    'titre' => 'Rappel d\'événement',
+                    'message' => "Rappel : L'événement '{$this->evenement->titre}' aura lieu dans " .
+                               $heuresAvant . " heure(s) à {$this->evenement->lieu}.",
+                    'type' => 'evenement',
+                    'destinataire_id' => $this->id_utilisateur,
+                    'lue' => false
+                ]);
+
+                $this->update(['rappel_envoye' => true]);
+            }
+        }
+    }
+
+    /**
+     * Obtenir les préférences de notification
+     */
+    public function getPreferenceNotification($cle)
+    {
+        $preferences = $this->preferences ?? [];
+        return $preferences[$cle] ?? $this->preferences_par_defaut[$cle] ?? false;
+    }
+
+    /**
+     * Définir une préférence de notification
+     */
+    public function setPreferenceNotification($cle, $valeur)
+    {
+        $preferences = $this->preferences ?? [];
+        $preferences[$cle] = $valeur;
+        $this->update(['preferences' => $preferences]);
+    }
+
+    // SCOPES
+
+    /**
+     * Scope pour les participants confirmés
+     */
+    public function scopeConfirmes($query)
+    {
+        return $query->where('statut_presence', 'confirme');
+    }
+
+    /**
+     * Scope pour les participants invités (en attente)
+     */
+    public function scopeInvites($query)
+    {
+        return $query->where('statut_presence', 'invite');
+    }
+
+    /**
+     * Scope pour les participants qui ont décliné
+     */
+    public function scopeDeclinees($query)
+    {
+        return $query->where('statut_presence', 'decline');
+    }
+
+    /**
+     * Scope pour les organisateurs
+     */
+    public function scopeOrganisateurs($query)
+    {
+        return $query->where('role_evenement', 'organisateur');
+    }
+
+    /**
+     * Scope pour les participants d'un événement donné
+     */
+    public function scopeDeEvenement($query, $eventId)
+    {
+        return $query->where('id_evenement', $eventId);
+    }
+
+    /**
+     * Scope pour les participations d'un utilisateur donné
+     */
+    public function scopeDeUtilisateur($query, $userId)
+    {
+        return $query->where('id_utilisateur', $userId);
+    }
+
+    /**
+     * Scope pour les participations nécessitant un rappel
+     */
+    public function scopeNecessitantRappel($query)
+    {
+        return $query->where('statut_presence', 'confirme')
+                     ->where('rappel_envoye', false)
+                     ->whereHas('evenement', function($q) {
+                         $q->where('date_debut', '>', now())
+                           ->where('date_debut', '<=', now()->addHours(24));
+                     });
+    }
+
+    // MÉTHODES STATIQUES
+
+    /**
+     * Obtenir les statistiques des participations
+     */
+    public static function statistiques()
+    {
+        return [
+            'total' => self::count(),
+            'confirmees' => self::where('statut_presence', 'confirme')->count(),
+            'en_attente' => self::where('statut_presence', 'invite')->count(),
+            'declinees' => self::where('statut_presence', 'decline')->count(),
+            'organisateurs' => self::where('role_evenement', 'organisateur')->count()
+        ];
+    }
+
+    /**
+     * Envoyer les rappels automatiques
+     */
+    public static function envoyerRappelsAutomatiques()
+    {
+        $participationsARappeler = self::necessitantRappel()->get();
+
+        foreach ($participationsARappeler as $participation) {
+            $participation->envoyerRappel();
+        }
+
+        return $participationsARappeler->count();
     }
 }
