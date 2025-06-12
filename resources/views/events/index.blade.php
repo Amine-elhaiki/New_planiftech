@@ -1,368 +1,1000 @@
 @extends('layouts.app')
 
-@section('title', 'Gestion des Événements')
+@section('title', 'Événements - Dashboard')
 
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 <style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.04);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+        --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        --shadow-xl: 0 25px 50px rgba(0,0,0,0.15);
+
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+        --radius-xl: 24px;
+
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Header Hero Section */
+    .hero-section {
+        background: var(--primary-gradient);
+        border-radius: var(--radius-xl);
+        padding: 3rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        color: white;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .hero-section::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -5%;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        animation: float 8s ease-in-out infinite reverse;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(180deg); }
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hero-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 2rem;
+    }
+
+    .hero-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .hero-stat {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 1rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: var(--transition);
+    }
+
+    .hero-stat:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .hero-stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .hero-stat-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    /* Navigation Tabs */
+    .custom-tabs {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 0.5rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .custom-tab {
+        flex: 1;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-md);
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        font-weight: 500;
+        transition: var(--transition);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .custom-tab.active {
+        background: var(--primary-gradient);
+        color: white;
+        box-shadow: var(--shadow-md);
+        transform: scale(1.02);
+    }
+
+    .custom-tab:hover:not(.active) {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    /* Main Content Grid */
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 2rem;
+    }
+
+    /* Event Cards Grid */
+    .events-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 1.5rem;
+    }
+
     .event-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border-left: 4px solid #dee2e6;
-        margin-bottom: 1rem;
+        background: white;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+        border: 1px solid #e5e7eb;
+        position: relative;
     }
 
     .event-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-xl);
     }
 
-    .event-card.type-intervention { border-left-color: #dc3545; }
-    .event-card.type-reunion { border-left-color: #007bff; }
-    .event-card.type-formation { border-left-color: #28a745; }
-    .event-card.type-visite { border-left-color: #fd7e14; }
+    .event-card-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        position: relative;
+    }
 
-    .status-badge {
+    .event-type-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
         font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .priority-indicator {
+    .type-intervention {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #dc2626;
+    }
+
+    .type-reunion {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #2563eb;
+    }
+
+    .type-formation {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        color: #16a34a;
+    }
+
+    .type-visite {
+        background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+        color: #ea580c;
+    }
+
+    .event-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+        margin-right: 5rem;
+    }
+
+    .event-description {
+        color: #6b7280;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+
+    .event-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .priority-dot {
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        display: inline-block;
-        margin-right: 0.5rem;
+        flex-shrink: 0;
     }
 
-    .priority-normale { background-color: #6c757d; }
-    .priority-haute { background-color: #ffc107; }
-    .priority-urgente { background-color: #dc3545; }
+    .priority-normale { background: #6b7280; }
+    .priority-haute { background: #f59e0b; }
+    .priority-urgente { background: #ef4444; }
 
-    .stats-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 10px;
+    .status-pill {
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-planifie {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .status-en_cours {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .status-termine {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-annule {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-reporte {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .event-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
         padding: 1.5rem;
-        margin-bottom: 1.5rem;
+        background: #f9fafb;
     }
 
-    .filter-card {
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .calendar-container {
-        background: white;
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .fc-toolbar {
-        margin-bottom: 1rem !important;
-    }
-
-    .fc-button {
-        border-radius: 6px !important;
-        font-size: 0.875rem !important;
-    }
-
-    .event-type-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
+    .info-item {
         display: flex;
         align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        font-size: 1.2rem;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #4b5563;
     }
 
-    .icon-intervention { background-color: rgba(220, 53, 69, 0.1); color: #dc3545; }
-    .icon-reunion { background-color: rgba(0, 123, 255, 0.1); color: #007bff; }
-    .icon-formation { background-color: rgba(40, 167, 69, 0.1); color: #28a745; }
-    .icon-visite { background-color: rgba(253, 126, 20, 0.1); color: #fd7e14; }
+    .info-icon {
+        width: 16px;
+        height: 16px;
+        color: #6b7280;
+        flex-shrink: 0;
+    }
+
+    .event-footer {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .participants-preview {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+    }
 
     .participant-avatar {
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        background-color: #007bff;
+        background: var(--primary-gradient);
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.75rem;
-        font-weight: bold;
-        margin-right: 0.25rem;
+        font-weight: 600;
+        margin-left: -8px;
+        border: 2px solid white;
+        position: relative;
+        z-index: 1;
     }
 
-    .view-toggle {
-        background-color: white;
-        border-radius: 10px;
-        padding: 0.5rem;
-        margin-bottom: 1.5rem;
+    .participant-avatar:first-child {
+        margin-left: 0;
     }
 
-    .view-toggle .nav-link {
-        border-radius: 6px;
-        color: #6c757d;
+    .participants-count {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-left: 0.5rem;
+    }
+
+    .event-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
         border: none;
-        padding: 0.75rem 1.5rem;
+        background: #f3f4f6;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+        cursor: pointer;
+        text-decoration: none;
     }
 
-    .view-toggle .nav-link.active {
-        background-color: #007bff;
+    .action-btn:hover {
+        background: #374151;
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .action-btn.primary {
+        background: var(--primary-gradient);
         color: white;
     }
 
+    .action-btn.primary:hover {
+        transform: scale(1.1);
+        box-shadow: var(--shadow-lg);
+        color: white;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .sidebar-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid #e5e7eb;
+    }
+
+    .sidebar-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sidebar-title i {
+        color: #667eea;
+    }
+
+    /* Filters */
+    .filter-group {
+        margin-bottom: 1rem;
+    }
+
+    .filter-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .filter-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        transition: var(--transition);
+        background: white;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .filter-btn {
+        flex: 1;
+        padding: 0.75rem;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .filter-btn.primary {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    .filter-btn.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        color: white;
+    }
+
+    .filter-btn.secondary {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .filter-btn.secondary:hover {
+        background: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+    }
+
+    /* Quick Actions */
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border: 1px solid #e5e7eb;
+        background: white;
+        color: #374151;
+        text-decoration: none;
+        transition: var(--transition);
+        margin-bottom: 0.75rem;
+    }
+
+    .quick-action:hover {
+        background: #f9fafb;
+        color: #1f2937;
+        transform: translateX(5px);
+        border-color: #667eea;
+        text-decoration: none;
+    }
+
+    .quick-action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .quick-action-content h4 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .quick-action-content p {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    /* Calendar Container */
+    .calendar-container {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid #e5e7eb;
+        min-height: 600px;
+    }
+
+    /* Calendar Customization */
+    .fc {
+        font-family: inherit;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        color: #1f2937;
+    }
+
+    .fc-button {
+        background: var(--primary-gradient) !important;
+        border: none !important;
+        border-radius: var(--radius-md) !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: 500 !important;
+        transition: var(--transition) !important;
+    }
+
+    .fc-button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: var(--shadow-lg) !important;
+    }
+
+    .fc-button:not(:disabled).fc-button-active {
+        background: #374151 !important;
+    }
+
+    .fc-event {
+        border: none !important;
+        border-radius: var(--radius-sm) !important;
+        padding: 2px 6px !important;
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid #e5e7eb;
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--primary-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .empty-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-description {
+        color: #6b7280;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .empty-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 2rem;
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        border-radius: var(--radius-lg);
+        font-weight: 600;
+        text-decoration: none;
+        transition: var(--transition);
+    }
+
+    .empty-action:hover {
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-xl);
+        text-decoration: none;
+    }
+
+    /* Floating Action Button */
+    .fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 60px;
+        height: 60px;
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 50%;
+        box-shadow: var(--shadow-xl);
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: var(--transition);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 25px 50px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .events-grid {
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        }
+    }
+
     @media (max-width: 768px) {
-        .fc-toolbar {
+        .hero-section {
+            padding: 2rem 1.5rem;
+        }
+
+        .hero-title {
+            font-size: 2rem;
+        }
+
+        .hero-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .custom-tabs {
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.25rem;
+        }
+
+        .events-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .event-info {
+            grid-template-columns: 1fr;
+        }
+
+        .fab {
+            bottom: 1rem;
+            right: 1rem;
+            width: 50px;
+            height: 50px;
+            font-size: 1.25rem;
+        }
+    }
+
+    /* Animations */
+    .fade-in {
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .slide-up {
+        animation: slideUp 0.8s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(40px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Loading States */
+    .loading-skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
         }
     }
 </style>
 @endpush
 
 @section('content')
-<div class="container-fluid">
-    <!-- En-tête avec statistiques -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">
-                <i class="bi bi-calendar3 text-primary me-2"></i>
-                Gestion des Événements
-            </h1>
-            <p class="text-muted mb-0">Planifiez et suivez vos événements et interventions</p>
-        </div>
-        <div class="btn-group">
-            <a href="{{ route('events.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i>
-                Nouvel Événement
-            </a>
-            <div class="btn-group">
-                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="bi bi-gear me-1"></i>
-                    Actions
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ route('events.export') }}">
-                        <i class="bi bi-download me-2"></i>Exporter CSV
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="window.print()">
-                        <i class="bi bi-printer me-2"></i>Imprimer
-                    </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ route('events.calendar') }}">
-                        <i class="bi bi-calendar3 me-2"></i>Vue Calendrier
-                    </a></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Statistiques rapides -->
-    <div class="stats-card">
-        <div class="row text-center">
-            <div class="col-md-3">
-                <h3 class="mb-1">{{ $stats['total'] ?? 0 }}</h3>
-                <small>Total Événements</small>
-            </div>
-            <div class="col-md-3">
-                <h3 class="mb-1">{{ $stats['aujourd_hui'] ?? 0 }}</h3>
-                <small>Aujourd'hui</small>
-            </div>
-            <div class="col-md-3">
-                <h3 class="mb-1">{{ $stats['cette_semaine'] ?? 0 }}</h3>
-                <small>Cette Semaine</small>
-            </div>
-            <div class="col-md-3">
-                <h3 class="mb-1">{{ $stats['urgents'] ?? 0 }}</h3>
-                <small>Urgents</small>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sélecteur de vue -->
-    <div class="view-toggle">
-        <ul class="nav nav-tabs" role="tablist">
-            <li class="nav-item">
-                <a class="nav-link {{ $view === 'calendar' ? 'active' : '' }}"
-                   id="calendar-tab" data-bs-toggle="tab" href="#calendar-view" role="tab">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    Calendrier
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $view === 'list' ? 'active' : '' }}"
-                   id="list-tab" data-bs-toggle="tab" href="#list-view" role="tab">
-                    <i class="bi bi-list-ul me-1"></i>
-                    Liste
-                </a>
-            </li>
-        </ul>
-    </div>
-
-    <div class="row">
-        <!-- Contenu principal -->
-        <div class="col-lg-9">
-            <div class="tab-content">
-                <!-- Vue Calendrier -->
-                <div class="tab-pane fade {{ $view === 'calendar' ? 'show active' : '' }}"
-                     id="calendar-view" role="tabpanel">
-                    <div class="calendar-container">
-                        <div id="calendar"></div>
-                    </div>
+<div class="container-fluid px-4">
+    <!-- Hero Section -->
+    <div class="hero-section fade-in">
+        <div class="hero-content">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h1 class="hero-title">
+                        <i class="bi bi-calendar-event me-3"></i>
+                        Tableau de Bord Événements
+                    </h1>
+                    <p class="hero-subtitle">
+                        Gérez efficacement vos interventions, réunions et formations ORMVAT
+                    </p>
                 </div>
+                <a href="{{ route('events.create') }}" class="btn btn-light btn-lg">
+                    <i class="bi bi-plus-lg me-2"></i>
+                    Nouvel Événement
+                </a>
+            </div>
 
-                <!-- Vue Liste -->
-                <div class="tab-pane fade {{ $view === 'list' ? 'show active' : '' }}"
-                     id="list-view" role="tabpanel">
-                    @if(isset($events) && $events->count() > 0)
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ $stats['total'] ?? 0 }}</span>
+                    <span class="hero-stat-label">Total</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ $stats['aujourd_hui'] ?? 0 }}</span>
+                    <span class="hero-stat-label">Aujourd'hui</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ $stats['cette_semaine'] ?? 0 }}</span>
+                    <span class="hero-stat-label">Cette Semaine</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ $stats['urgents'] ?? 0 }}</span>
+                    <span class="hero-stat-label">Urgents</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">{{ $stats['ce_mois'] ?? 0 }}</span>
+                    <span class="hero-stat-label">Ce Mois</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="custom-tabs slide-up">
+        <button class="custom-tab {{ $view === 'cards' ? 'active' : '' }}"
+                onclick="switchView('cards')">
+            <i class="bi bi-grid-3x3-gap"></i>
+            Vue Cartes
+        </button>
+        <button class="custom-tab {{ $view === 'calendar' ? 'active' : '' }}"
+                onclick="switchView('calendar')">
+            <i class="bi bi-calendar3"></i>
+            Calendrier
+        </button>
+        <button class="custom-tab {{ $view === 'timeline' ? 'active' : '' }}"
+                onclick="switchView('timeline')">
+            <i class="bi bi-list-ul"></i>
+            Timeline
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content-grid">
+        <!-- Events Content -->
+        <div class="main-content">
+            <!-- Cards View -->
+            <div id="cards-view" class="{{ $view === 'cards' ? '' : 'd-none' }}">
+                @if(isset($events) && $events->count() > 0)
+                    <div class="events-grid">
                         @foreach($events as $event)
-                            <div class="event-card card type-{{ $event->type }}">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-start">
-                                        <!-- Icône du type d'événement -->
-                                        <div class="event-type-icon icon-{{ $event->type }}">
-                                            <i class="bi bi-{{ $event->type === 'intervention' ? 'tools' : ($event->type === 'reunion' ? 'people' : ($event->type === 'formation' ? 'book' : 'geo-alt')) }}"></i>
-                                        </div>
+                            <div class="event-card fade-in" style="animation-delay: {{ $loop->index * 0.1 }}s">
+                                <div class="event-card-header">
+                                    <div class="event-type-badge type-{{ $event->type }}">
+                                        {{ $event->type_nom }}
+                                    </div>
 
-                                        <!-- Contenu principal -->
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <div>
-                                                    <h5 class="card-title mb-1">{{ $event->titre }}</h5>
-                                                    <div class="d-flex align-items-center gap-2 mb-2">
-                                                        <span class="priority-indicator priority-{{ $event->priorite }}"></span>
-                                                        <span class="badge status-badge
-                                                            @if($event->statut === 'termine') bg-success
-                                                            @elseif($event->statut === 'en_cours') bg-primary
-                                                            @elseif($event->statut === 'annule') bg-danger
-                                                            @elseif($event->statut === 'reporte') bg-warning
-                                                            @else bg-secondary @endif">
-                                                            {{ $event->statut_nom }}
-                                                        </span>
-                                                        <span class="badge bg-light text-dark">{{ $event->type_nom }}</span>
-                                                        @if($event->priorite === 'urgente')
-                                                            <span class="badge bg-danger">{{ $event->priorite_nom }}</span>
-                                                        @elseif($event->priorite === 'haute')
-                                                            <span class="badge bg-warning">{{ $event->priorite_nom }}</span>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                <div class="btn-group btn-group-sm">
-                                                    <a href="{{ route('events.show', $event) }}"
-                                                       class="btn btn-outline-primary" title="Voir">
-                                                        <i class="bi bi-eye"></i>
-                                                    </a>
-                                                    @if(Auth::user()->role === 'admin' || $event->id_organisateur === Auth::id())
-                                                        <a href="{{ route('events.edit', $event) }}"
-                                                           class="btn btn-outline-secondary" title="Modifier">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </a>
-                                                        <button type="button" class="btn btn-outline-danger"
-                                                                title="Supprimer" onclick="confirmDelete({{ $event->id }})">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    @endif
-                                                </div>
-                                            </div>
+                                    <h3 class="event-title">{{ $event->titre }}</h3>
+                                    <p class="event-description">
+                                        {{ Str::limit($event->description, 120) }}
+                                    </p>
 
-                                            <p class="card-text text-muted mb-2">
-                                                {{ Str::limit($event->description, 100) }}
-                                            </p>
+                                    <div class="event-meta">
+                                        <div class="priority-dot priority-{{ $event->priorite }}"
+                                             title="{{ $event->priorite_nom }}"></div>
+                                        <span class="status-pill status-{{ $event->statut }}">
+                                            {{ $event->statut_nom }}
+                                        </span>
+                                        @if($event->date_debut < now() && $event->statut !== 'termine')
+                                            <span class="status-pill status-annule">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                En retard
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
 
-                                            <!-- Informations détaillées -->
-                                            <div class="row text-sm">
-                                                <div class="col-md-4">
-                                                    <i class="bi bi-calendar-date text-primary me-1"></i>
-                                                    <strong>Date:</strong><br>
-                                                    <small class="text-muted">{{ $event->date_debut->format('d/m/Y à H:i') }}</small>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <i class="bi bi-geo-alt text-primary me-1"></i>
-                                                    <strong>Lieu:</strong><br>
-                                                    <small class="text-muted">{{ $event->lieu }}</small>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <i class="bi bi-person text-primary me-1"></i>
-                                                    <strong>Organisateur:</strong><br>
-                                                    <small class="text-muted">{{ $event->organisateur->prenom }} {{ $event->organisateur->nom }}</small>
-                                                </div>
-                                            </div>
+                                <div class="event-info">
+                                    <div class="info-item">
+                                        <i class="bi bi-calendar-date info-icon"></i>
+                                        <span>{{ $event->date_debut->format('d/m/Y à H:i') }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="bi bi-clock info-icon"></i>
+                                        <span>{{ $event->duree }} min</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="bi bi-geo-alt info-icon"></i>
+                                        <span>{{ Str::limit($event->lieu, 20) }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="bi bi-person info-icon"></i>
+                                        <span>{{ $event->organisateur->prenom }} {{ $event->organisateur->nom }}</span>
+                                    </div>
+                                </div>
 
-                                            <!-- Participants -->
-                                            @if($event->participants->count() > 0)
-                                                <div class="mt-3">
-                                                    <small class="text-muted">Participants ({{ $event->participants->count() }}):</small>
-                                                    <div class="d-flex flex-wrap mt-1">
-                                                        @foreach($event->participants->take(5) as $participation)
-                                                            <div class="participant-avatar"
-                                                                 title="{{ $participation->utilisateur->prenom }} {{ $participation->utilisateur->nom }}">
-                                                                {{ substr($participation->utilisateur->prenom, 0, 1) }}{{ substr($participation->utilisateur->nom, 0, 1) }}
-                                                            </div>
-                                                        @endforeach
-                                                        @if($event->participants->count() > 5)
-                                                            <div class="participant-avatar" style="background-color: #6c757d;">
-                                                                +{{ $event->participants->count() - 5 }}
-                                                            </div>
-                                                        @endif
-                                                    </div>
+                                <div class="event-footer">
+                                    <div class="participants-preview">
+                                        @if($event->participants->count() > 0)
+                                            @foreach($event->participants->take(3) as $participant)
+                                                <div class="participant-avatar"
+                                                     title="{{ $participant->utilisateur->prenom }} {{ $participant->utilisateur->nom }}">
+                                                    {{ substr($participant->utilisateur->prenom, 0, 1) }}{{ substr($participant->utilisateur->nom, 0, 1) }}
                                                 </div>
+                                            @endforeach
+                                            @if($event->participants->count() > 3)
+                                                <span class="participants-count">
+                                                    +{{ $event->participants->count() - 3 }} autres
+                                                </span>
                                             @endif
-                                        </div>
+                                        @else
+                                            <span class="participants-count text-muted">Aucun participant</span>
+                                        @endif
+                                    </div>
+
+                                    <div class="event-actions">
+                                        <a href="{{ route('events.show', $event) }}"
+                                           class="action-btn primary" title="Voir">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if(Auth::user()->role === 'admin' || $event->id_organisateur === Auth::id())
+                                            <a href="{{ route('events.edit', $event) }}"
+                                               class="action-btn" title="Modifier">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <button class="action-btn"
+                                                    onclick="confirmDelete({{ $event->id }})"
+                                                    title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
+                    </div>
 
-                        <!-- Pagination -->
-                        @if(isset($events) && method_exists($events, 'links'))
-                            <div class="d-flex justify-content-center">
-                                {{ $events->appends(request()->query())->links() }}
-                            </div>
-                        @endif
-                    @else
-                        <div class="text-center py-5">
-                            <i class="bi bi-calendar-x text-muted" style="font-size: 4rem;"></i>
-                            <h4 class="text-muted mt-3">Aucun événement trouvé</h4>
-                            <p class="text-muted">Commencez par créer votre premier événement.</p>
-                            <a href="{{ route('events.create') }}" class="btn btn-primary">
-                                <i class="bi bi-plus-lg me-1"></i>
-                                Créer un Événement
-                            </a>
+                    <!-- Pagination -->
+                    @if(isset($events) && method_exists($events, 'links'))
+                        <div class="d-flex justify-content-center mt-4">
+                            {{ $events->appends(request()->query())->links() }}
                         </div>
                     @endif
+                @else
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                        <h3 class="empty-title">Aucun événement trouvé</h3>
+                        <p class="empty-description">
+                            Commencez par créer votre premier événement pour organiser vos activités ORMVAT.
+                        </p>
+                        <a href="{{ route('events.create') }}" class="empty-action">
+                            <i class="bi bi-plus-lg"></i>
+                            Créer un Événement
+                        </a>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Calendar View -->
+            <div id="calendar-view" class="{{ $view === 'calendar' ? '' : 'd-none' }}">
+                <div class="calendar-container">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+
+            <!-- Timeline View -->
+            <div id="timeline-view" class="{{ $view === 'timeline' ? '' : 'd-none' }}">
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="bi bi-list-timeline"></i>
+                    </div>
+                    <h3 class="empty-title">Vue Timeline</h3>
+                    <p class="empty-description">
+                        Cette fonctionnalité sera bientôt disponible.
+                    </p>
                 </div>
             </div>
         </div>
 
-        <!-- Sidebar avec filtres -->
-        <div class="col-lg-3">
-            <!-- Filtres -->
-            <div class="filter-card">
-                <h6 class="fw-bold mb-3">
-                    <i class="bi bi-funnel text-primary me-2"></i>
-                    Filtres
-                </h6>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Filters -->
+            <div class="sidebar-card">
+                <h3 class="sidebar-title">
+                    <i class="bi bi-funnel"></i>
+                    Filtres Avancés
+                </h3>
 
                 <form method="GET" action="{{ route('events.index') }}" id="filterForm">
-                    <input type="hidden" name="view" value="{{ $view }}">
+                    <input type="hidden" name="view" value="{{ $view }}" id="viewInput">
 
-                    <div class="mb-3">
-                        <label for="search" class="form-label">Recherche</label>
-                        <input type="text" class="form-control form-control-sm"
-                               id="search" name="search" value="{{ request('search') }}"
-                               placeholder="Titre, description, lieu...">
+                    <div class="filter-group">
+                        <label class="filter-label">Recherche</label>
+                        <input type="text" name="search" value="{{ request('search') }}"
+                               class="filter-input" placeholder="Titre, description, lieu...">
                     </div>
 
-                    <div class="mb-3">
-                        <label for="type" class="form-label">Type</label>
-                        <select class="form-select form-select-sm" id="type" name="type">
+                    <div class="filter-group">
+                        <label class="filter-label">Type d'événement</label>
+                        <select name="type" class="filter-input">
                             <option value="">Tous les types</option>
                             @foreach(App\Models\Event::$types as $key => $label)
                                 <option value="{{ $key }}" {{ request('type') === $key ? 'selected' : '' }}>
@@ -372,9 +1004,9 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="statut" class="form-label">Statut</label>
-                        <select class="form-select form-select-sm" id="statut" name="statut">
+                    <div class="filter-group">
+                        <label class="filter-label">Statut</label>
+                        <select name="statut" class="filter-input">
                             <option value="">Tous les statuts</option>
                             @foreach(App\Models\Event::$statuts as $key => $label)
                                 <option value="{{ $key }}" {{ request('statut') === $key ? 'selected' : '' }}>
@@ -384,10 +1016,10 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="priorite" class="form-label">Priorité</label>
-                        <select class="form-select form-select-sm" id="priorite" name="priorite">
-                            <option value="">Toutes les priorités</option>
+                    <div class="filter-group">
+                        <label class="filter-label">Priorité</label>
+                        <select name="priorite" class="filter-input">
+                            <option value="">Toutes</option>
                             @foreach(App\Models\Event::$priorites as $key => $label)
                                 <option value="{{ $key }}" {{ request('priorite') === $key ? 'selected' : '' }}>
                                     {{ $label }}
@@ -396,84 +1028,108 @@
                         </select>
                     </div>
 
-                    <div class="row">
-                        <div class="col-6">
-                            <label for="date_debut" class="form-label">Du</label>
-                            <input type="date" class="form-control form-control-sm"
-                                   id="date_debut" name="date_debut" value="{{ request('date_debut') }}">
-                        </div>
-                        <div class="col-6">
-                            <label for="date_fin" class="form-label">Au</label>
-                            <input type="date" class="form-control form-control-sm"
-                                   id="date_fin" name="date_fin" value="{{ request('date_fin') }}">
+                    <div class="filter-group">
+                        <label class="filter-label">Période</label>
+                        <div class="d-flex gap-2">
+                            <input type="date" name="date_debut" value="{{ request('date_debut') }}"
+                                   class="filter-input" style="flex: 1;">
+                            <input type="date" name="date_fin" value="{{ request('date_fin') }}"
+                                   class="filter-input" style="flex: 1;">
                         </div>
                     </div>
 
-                    <div class="d-grid gap-2 mt-3">
-                        <button type="submit" class="btn btn-primary btn-sm">
+                    <div class="filter-buttons">
+                        <button type="submit" class="filter-btn primary">
                             <i class="bi bi-search me-1"></i>
                             Filtrer
                         </button>
-                        <a href="{{ route('events.index', ['view' => $view]) }}" class="btn btn-outline-secondary btn-sm">
+                        <a href="{{ route('events.index', ['view' => $view]) }}"
+                           class="filter-btn secondary">
                             <i class="bi bi-arrow-clockwise me-1"></i>
-                            Réinitialiser
+                            Reset
                         </a>
                     </div>
                 </form>
             </div>
 
-            <!-- Actions rapides -->
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-lightning text-primary me-2"></i>
-                        Actions Rapides
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ route('events.create') }}" class="btn btn-primary btn-sm">
-                            <i class="bi bi-plus me-1"></i>
-                            Créer Événement
-                        </a>
-                        <a href="{{ route('events.index', ['view' => 'calendar']) }}" class="btn btn-outline-info btn-sm">
-                            <i class="bi bi-calendar3 me-1"></i>
-                            Vue Calendrier
-                        </a>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-                            <i class="bi bi-printer me-1"></i>
-                            Imprimer
-                        </a>
+            <!-- Quick Actions -->
+            <div class="sidebar-card">
+                <h3 class="sidebar-title">
+                    <i class="bi bi-lightning"></i>
+                    Actions Rapides
+                </h3>
+
+                <a href="{{ route('events.create') }}" class="quick-action">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-plus-lg"></i>
                     </div>
-                </div>
+                    <div class="quick-action-content">
+                        <h4>Créer Événement</h4>
+                        <p>Nouveau rendez-vous ou intervention</p>
+                    </div>
+                </a>
+
+                <a href="{{ route('events.export') }}" class="quick-action">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-download"></i>
+                    </div>
+                    <div class="quick-action-content">
+                        <h4>Exporter Données</h4>
+                        <p>Télécharger au format CSV</p>
+                    </div>
+                </a>
+
+                <a href="#" onclick="window.print()" class="quick-action">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-printer"></i>
+                    </div>
+                    <div class="quick-action-content">
+                        <h4>Imprimer Planning</h4>
+                        <p>Version imprimable</p>
+                    </div>
+                </a>
+
+                <a href="{{ route('events.calendar') }}" class="quick-action">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-calendar3"></i>
+                    </div>
+                    <div class="quick-action-content">
+                        <h4>Vue Calendrier Complet</h4>
+                        <p>Page dédiée calendrier</p>
+                    </div>
+                </a>
             </div>
 
-            <!-- Événements à venir -->
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-clock text-primary me-2"></i>
-                        Prochains Événements
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <!-- Simulation d'événements à venir -->
-                    <div class="mb-2">
-                        <div class="d-flex align-items-center">
-                            <div class="priority-indicator priority-urgente"></div>
-                            <div class="flex-grow-1">
-                                <div class="fw-bold small">Maintenance urgente</div>
-                                <small class="text-muted">Aujourd'hui 14:00</small>
-                            </div>
+            <!-- Upcoming Events -->
+            <div class="sidebar-card">
+                <h3 class="sidebar-title">
+                    <i class="bi bi-clock"></i>
+                    Prochains Événements
+                </h3>
+
+                <div class="d-flex flex-column gap-3">
+                    <!-- Example upcoming events -->
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="priority-dot priority-urgente"></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold text-sm">Maintenance urgente pompe A</div>
+                            <div class="text-xs text-muted">Aujourd'hui 14:00</div>
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <div class="d-flex align-items-center">
-                            <div class="priority-indicator priority-normale"></div>
-                            <div class="flex-grow-1">
-                                <div class="fw-bold small">Réunion équipe</div>
-                                <small class="text-muted">Demain 09:00</small>
-                            </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="priority-dot priority-normale"></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold text-sm">Réunion équipe technique</div>
+                            <div class="text-xs text-muted">Demain 09:00</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="priority-dot priority-haute"></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold text-sm">Formation sécurité</div>
+                            <div class="text-xs text-muted">Vendredi 10:00</div>
                         </div>
                     </div>
                 </div>
@@ -482,21 +1138,30 @@
     </div>
 </div>
 
-<!-- Formulaire de suppression (caché) -->
+<!-- Floating Action Button -->
+<button class="fab" onclick="window.location.href='{{ route('events.create') }}'" title="Créer un événement">
+    <i class="bi bi-plus-lg"></i>
+</button>
+
+<!-- Delete Form (Hidden) -->
 <form id="deleteForm" method="POST" style="display: none;">
     @csrf
     @method('DELETE')
 </form>
 @endsection
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation du calendrier
-    var calendarEl = document.getElementById('calendar');
+    let calendar;
 
-    if (calendarEl) {
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+    // Initialize Calendar
+    function initCalendar() {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'fr',
             height: 'auto',
@@ -511,13 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 week: 'Semaine',
                 day: 'Jour'
             },
-            events: {
-                url: '/events/calendar/data',
-                method: 'GET',
-                failure: function() {
-                    alert('Erreur lors du chargement des événements');
-                }
-            },
+            events: '/events/calendar/data',
             eventClick: function(info) {
                 window.location.href = '/events/' + info.event.id;
             },
@@ -525,35 +1184,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/events/create?date=' + info.dateStr;
             },
             eventDidMount: function(info) {
-                // Ajouter un tooltip
-                info.el.setAttribute('title', info.event.title + ' - ' + (info.event.extendedProps.lieu || ''));
+                var title = info.event.title;
+                var lieu = info.event.extendedProps.lieu || '';
+                var organisateur = info.event.extendedProps.organisateur || '';
+                info.el.setAttribute('title', title + '\n' + lieu + '\nOrganisateur: ' + organisateur);
             }
         });
 
         calendar.render();
     }
 
-    // Gestion des onglets avec URL
-    var tabElements = document.querySelectorAll('[data-bs-toggle="tab"]');
-    tabElements.forEach(function(tabElement) {
-        tabElement.addEventListener('shown.bs.tab', function(e) {
-            var view = e.target.id === 'calendar-tab' ? 'calendar' : 'list';
-            var url = new URL(window.location);
-            url.searchParams.set('view', view);
-            window.history.replaceState({}, '', url);
+    // View Switching
+    window.switchView = function(view) {
+        // Hide all views
+        document.querySelectorAll('[id$="-view"]').forEach(function(el) {
+            el.classList.add('d-none');
         });
-    });
 
-    // Auto-soumission des filtres
-    var filterSelects = document.querySelectorAll('#filterForm select');
-    filterSelects.forEach(function(select) {
+        // Show selected view
+        document.getElementById(view + '-view').classList.remove('d-none');
+
+        // Update active tab
+        document.querySelectorAll('.custom-tab').forEach(function(tab) {
+            tab.classList.remove('active');
+        });
+        document.querySelector('[onclick="switchView(\'' + view + '\')"]').classList.add('active');
+
+        // Update URL
+        var url = new URL(window.location);
+        url.searchParams.set('view', view);
+        window.history.replaceState({}, '', url);
+
+        // Update hidden input
+        document.getElementById('viewInput').value = view;
+
+        // Initialize calendar if calendar view is selected
+        if (view === 'calendar' && !calendar) {
+            setTimeout(initCalendar, 100);
+        }
+    };
+
+    // Delete Confirmation
+    window.confirmDelete = function(eventId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
+            var form = document.getElementById('deleteForm');
+            form.action = '/events/' + eventId;
+            form.submit();
+        }
+    };
+
+    // Auto-submit filters on change
+    document.querySelectorAll('#filterForm select').forEach(function(select) {
         select.addEventListener('change', function() {
             document.getElementById('filterForm').submit();
         });
     });
 
-    // Recherche avec délai
-    var searchInput = document.getElementById('search');
+    // Search with delay
+    var searchInput = document.querySelector('[name="search"]');
     if (searchInput) {
         var searchTimeout;
         searchInput.addEventListener('input', function() {
@@ -563,40 +1251,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 500);
         });
     }
+
+    // Initialize calendar if calendar view is active
+    var calendarView = document.getElementById('calendar-view');
+    if (calendarView && !calendarView.classList.contains('d-none')) {
+        initCalendar();
+    }
+
+    // Smooth animations on scroll
+    var observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                entry.target.style.animationPlayState = 'running';
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.fade-in, .slide-up').forEach(function(el) {
+        el.style.animationPlayState = 'paused';
+        observer.observe(el);
+    });
 });
 
-// Fonction de confirmation de suppression
-function confirmDelete(eventId) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
-        var form = document.getElementById('deleteForm');
-        form.action = '/events/' + eventId;
-        form.submit();
-    }
-}
-
-// Fonction pour aller à la vue calendrier
-function goToCalendarView() {
-    var url = new URL(window.location);
-    url.searchParams.set('view', 'calendar');
-    window.location.href = url.toString();
-}
-
-// Fonction pour aller à la vue liste
-function goToListView() {
-    var url = new URL(window.location);
-    url.searchParams.set('view', 'list');
-    window.location.href = url.toString();
-}
-
-// Fonction pour exporter
+// Export function
 function exportEvents() {
     var params = new URLSearchParams(window.location.search);
     window.location.href = '/events/export/csv?' + params.toString();
-}
-
-// Fonction pour imprimer
-function printEvents() {
-    window.print();
 }
 </script>
 @endpush

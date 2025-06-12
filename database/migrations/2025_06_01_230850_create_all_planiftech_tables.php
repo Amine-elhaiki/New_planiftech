@@ -76,19 +76,70 @@ return new class extends Migration
         });
 
         // 4. Table des participants aux événements
-        Schema::create('participant_events', function (Blueprint $table) {
+       Schema::create('participant_events', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_evenement')->constrained('events')->onDelete('cascade');
-            $table->foreignId('id_utilisateur')->constrained('users')->onDelete('cascade');
-            $table->enum('statut_presence', ['invite', 'confirme', 'decline', 'present', 'absent'])->default('invite');
+
+            // Clés étrangères avec gestion améliorée des suppressions
+            $table->foreignId('id_evenement')
+                  ->constrained('events')
+                  ->onDelete('cascade'); // OK pour cascade car si événement supprimé, pas de participants
+
+            $table->foreignId('id_utilisateur')
+                  ->constrained('users')
+                  ->onDelete('restrict'); // RESTRICT pour préserver l'historique
+
+            // Statut de présence avec valeurs étendues
+            $table->enum('statut_presence', [
+                'invite',      // Invité (par défaut)
+                'confirme',    // Confirmé sa présence
+                'decline',     // Décliné l'invitation
+                'present',     // Présent (marqué pendant/après l'événement)
+                'absent',      // Absent (marqué pendant/après l'événement)
+                'excuse'       // Excusé (absent justifié)
+            ])->default('invite');
+
+            // Rôle dans l'événement
+            $table->enum('role_evenement', [
+                'organisateur',
+                'participant',
+                'intervenant',
+                'observateur'
+            ])->default('participant');
+
+            // Métadonnées supplémentaires
+            $table->timestamp('date_invitation')->nullable(); // Quand l'invitation a été envoyée
+            $table->timestamp('date_reponse')->nullable();    // Quand la réponse a été donnée
+            $table->text('commentaire')->nullable();          // Commentaire du participant
+            $table->text('notes_organisateur')->nullable();   // Notes privées de l'organisateur
+
+            // Gestion des notifications
+            $table->boolean('notification_envoyee')->default(false);
+            $table->boolean('rappel_envoye')->default(false);
+
+            // Timestamps standard
             $table->timestamps();
 
-            // Contrainte d'unicité pour éviter les doublons
-            $table->unique(['id_evenement', 'id_utilisateur']);
+            // Soft deletes pour garder l'historique
+            $table->softDeletes();
 
-            // Index pour améliorer les performances
-            $table->index(['id_evenement', 'statut_presence']);
-            $table->index(['id_utilisateur']);
+            // CONTRAINTES ET INDEX
+
+            // Contrainte d'unicité principale (plus souple)
+            $table->unique(['id_evenement', 'id_utilisateur'], 'unique_participant_event');
+
+            // Index composés pour les requêtes fréquentes
+            $table->index(['id_evenement', 'statut_presence'], 'idx_event_status');
+            $table->index(['id_evenement', 'role_evenement'], 'idx_event_role');
+            $table->index(['id_utilisateur', 'statut_presence'], 'idx_user_status');
+            $table->index(['id_utilisateur', 'created_at'], 'idx_user_chronology');
+
+            // Index pour les notifications
+            $table->index(['notification_envoyee', 'created_at'], 'idx_notifications');
+            $table->index(['rappel_envoye', 'created_at'], 'idx_reminders');
+
+            // Index pour les statistiques
+            $table->index(['statut_presence', 'created_at'], 'idx_stats_presence');
+            $table->index(['role_evenement', 'created_at'], 'idx_stats_roles');
         });
 
         // 5. Table des rapports

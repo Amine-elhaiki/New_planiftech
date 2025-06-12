@@ -67,10 +67,6 @@
         margin-left: 2px;
     }
 
-    .time-input {
-        max-width: 120px;
-    }
-
     .participant-item {
         display: flex;
         align-items: center;
@@ -101,6 +97,54 @@
         border-radius: 0.375rem;
         padding: 1rem;
         margin-bottom: 1rem;
+    }
+
+    .event-type-card {
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        text-align: center;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .event-type-card:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+        transform: translateY(-2px);
+    }
+
+    .event-type-card.selected {
+        border-color: #007bff;
+        background-color: #e7f1ff;
+        transform: translateY(-2px);
+    }
+
+    .priority-option {
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .priority-option:hover {
+        background-color: #f8f9fa;
+        border-color: #007bff;
+    }
+
+    .priority-option.selected {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .datetime-input {
+        min-width: 200px;
     }
 </style>
 @endpush
@@ -169,20 +213,42 @@
 
                                 <div class="col-md-4">
                                     <div class="mb-3">
-                                        <label for="type" class="form-label required-field">Type d'événement</label>
-                                        <select class="form-select @error('type') is-invalid @enderror" id="type" name="type" required>
-                                            <option value="">Sélectionner un type</option>
-                                            @foreach(App\Models\Event::$types as $key => $label)
-                                                <option value="{{ $key }}" {{ old('type') === $key ? 'selected' : '' }}>
+                                        <label for="priorite" class="form-label required-field">Priorité</label>
+                                        <select class="form-select @error('priorite') is-invalid @enderror"
+                                                id="priorite" name="priorite" required>
+                                            <option value="">Sélectionner...</option>
+                                            @foreach(App\Models\Event::$priorites as $key => $label)
+                                                <option value="{{ $key }}" {{ old('priorite', 'normale') === $key ? 'selected' : '' }}>
                                                     {{ $label }}
                                                 </option>
                                             @endforeach
                                         </select>
-                                        @error('type')
+                                        @error('priorite')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Type d'événement -->
+                            <div class="mb-4">
+                                <label class="form-label required-field">Type d'événement</label>
+                                <div class="row">
+                                    @foreach(App\Models\Event::$types as $key => $label)
+                                        <div class="col-md-3 mb-2">
+                                            <div class="event-type-card {{ old('type') === $key ? 'selected' : '' }}"
+                                                 onclick="selectEventType('{{ $key }}')">
+                                                <i class="bi bi-{{ $key === 'intervention' ? 'tools' : ($key === 'reunion' ? 'people' : ($key === 'formation' ? 'book' : 'geo-alt')) }} fs-2 text-primary d-block mb-2"></i>
+                                                <div class="fw-bold">{{ $label }}</div>
+                                                <input type="radio" name="type" value="{{ $key }}"
+                                                       {{ old('type') === $key ? 'checked' : '' }} style="display: none;">
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                @error('type')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <div class="mb-3">
@@ -195,39 +261,19 @@
                                 @enderror
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="priorite" class="form-label required-field">Priorité</label>
-                                        <select class="form-select @error('priorite') is-invalid @enderror" id="priorite" name="priorite" required>
-                                            @foreach(App\Models\Event::$priorites as $key => $label)
-                                                <option value="{{ $key }}" {{ old('priorite', 'normale') === $key ? 'selected' : '' }}>
-                                                    {{ $label }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('priorite')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="id_projet" class="form-label">Projet associé (optionnel)</label>
-                                        <select class="form-select @error('id_projet') is-invalid @enderror" id="id_projet" name="id_projet">
-                                            <option value="">Aucun projet</option>
-                                            @foreach($projects as $project)
-                                                <option value="{{ $project->id }}" {{ old('id_projet') == $project->id ? 'selected' : '' }}>
-                                                    {{ $project->nom }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('id_projet')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
+                            <div class="mb-3">
+                                <label for="id_projet" class="form-label">Projet associé (optionnel)</label>
+                                <select class="form-select @error('id_projet') is-invalid @enderror" id="id_projet" name="id_projet">
+                                    <option value="">Aucun projet</option>
+                                    @foreach($projects as $project)
+                                        <option value="{{ $project->id }}" {{ old('id_projet') == $project->id ? 'selected' : '' }}>
+                                            {{ $project->nom }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('id_projet')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <div class="d-flex justify-content-end">
@@ -254,36 +300,42 @@
                                 <p id="conflictMessage" class="mb-0"></p>
                             </div>
 
-                            <div class="row">
+                            <!-- Dates et heures avec datetime-local -->
+                            <div class="row mb-4">
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="date_debut" class="form-label required-field">Date de début</label>
-                                        <input type="date" class="form-control @error('date_debut') is-invalid @enderror"
-                                               id="date_debut" name="date_debut" value="{{ old('date_debut', request('date', date('Y-m-d'))) }}"
-                                               min="{{ date('Y-m-d') }}" required>
+                                        <label for="date_debut" class="form-label required-field">Date et heure de début</label>
+                                        <input type="datetime-local"
+                                               class="form-control datetime-input @error('date_debut') is-invalid @enderror"
+                                               id="date_debut"
+                                               name="date_debut"
+                                               value="{{ old('date_debut', now()->format('Y-m-d\TH:i')) }}"
+                                               min="{{ now()->format('Y-m-d\TH:i') }}"
+                                               required>
                                         @error('date_debut')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>
 
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="heure_debut" class="form-label required-field">Heure de début</label>
-                                        <input type="time" class="form-control time-input @error('date_debut') is-invalid @enderror"
-                                               id="heure_debut" name="heure_debut" value="{{ old('heure_debut', '08:00') }}" required>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="mb-3">
-                                        <label for="heure_fin" class="form-label required-field">Heure de fin</label>
-                                        <input type="time" class="form-control time-input @error('date_fin') is-invalid @enderror"
-                                               id="heure_fin" name="heure_fin" value="{{ old('heure_fin', '17:00') }}" required>
+                                        <label for="date_fin" class="form-label required-field">Date et heure de fin</label>
+                                        <input type="datetime-local"
+                                               class="form-control datetime-input @error('date_fin') is-invalid @enderror"
+                                               id="date_fin"
+                                               name="date_fin"
+                                               value="{{ old('date_fin', now()->addHour()->format('Y-m-d\TH:i')) }}"
+                                               min="{{ now()->format('Y-m-d\TH:i') }}"
+                                               required>
+                                        @error('date_fin')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- Lieu -->
                             <div class="row">
                                 <div class="col-md-8">
                                     <div class="mb-3">
@@ -420,10 +472,6 @@
                                 </button>
                             </div>
                         </div>
-
-                        <!-- Champs cachés pour les dates complètes -->
-                        <input type="hidden" id="date_debut_complete" name="date_debut">
-                        <input type="hidden" id="date_fin_complete" name="date_fin">
                     </form>
                 </div>
             </div>
@@ -500,20 +548,17 @@ function validateCurrentStep() {
 // Validation des dates
 function validateDates() {
     const dateDebut = document.getElementById('date_debut').value;
-    const heureDebut = document.getElementById('heure_debut').value;
-    const heureFin = document.getElementById('heure_fin').value;
+    const dateFin = document.getElementById('date_fin').value;
 
-    if (dateDebut && heureDebut && heureFin) {
-        const debut = new Date(`${dateDebut}T${heureDebut}`);
-        const fin = new Date(`${dateDebut}T${heureFin}`);
+    if (dateDebut && dateFin) {
+        const debut = new Date(dateDebut);
+        const fin = new Date(dateFin);
 
         if (fin <= debut) {
-            alert('L\'heure de fin doit être postérieure à l\'heure de début.');
+            alert('La date de fin doit être postérieure à la date de début.');
+            document.getElementById('date_fin').classList.add('is-invalid');
             return false;
         }
-
-        // Mettre à jour les champs cachés
-        updateDateTimeFields();
 
         // Vérifier les conflits (simulation)
         checkConflicts();
@@ -522,22 +567,9 @@ function validateDates() {
     return true;
 }
 
-// Mettre à jour les champs de date-heure complets
-function updateDateTimeFields() {
-    const dateDebut = document.getElementById('date_debut').value;
-    const heureDebut = document.getElementById('heure_debut').value;
-    const heureFin = document.getElementById('heure_fin').value;
-
-    if (dateDebut && heureDebut && heureFin) {
-        document.getElementById('date_debut_complete').value = `${dateDebut} ${heureDebut}:00`;
-        document.getElementById('date_fin_complete').value = `${dateDebut} ${heureFin}:00`;
-    }
-}
-
 // Vérification des conflits (simulation)
 function checkConflicts() {
     // Simulation de vérification de conflits
-    // Dans un vrai projet, ceci ferait un appel AJAX au serveur
     const conflictWarning = document.getElementById('conflictWarning');
 
     // Simulation: conflit si l'événement est un mardi
@@ -549,6 +581,15 @@ function checkConflicts() {
     } else {
         conflictWarning.classList.add('d-none');
     }
+}
+
+// Sélection du type d'événement
+function selectEventType(type) {
+    document.querySelectorAll('.event-type-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.target.closest('.event-type-card').classList.add('selected');
+    document.querySelector(`input[name="type"][value="${type}"]`).checked = true;
 }
 
 // Recherche de participants
@@ -663,10 +704,24 @@ document.querySelectorAll('.location-suggestion').forEach(suggestion => {
     });
 });
 
+// Validation en temps réel des dates
+document.getElementById('date_debut').addEventListener('change', function() {
+    const dateDebut = this.value;
+    const dateFinInput = document.getElementById('date_fin');
+
+    // Mettre à jour la date de fin minimale
+    dateFinInput.min = dateDebut;
+
+    // Si la date de fin est antérieure, l'ajuster automatiquement
+    if (dateFinInput.value && new Date(dateFinInput.value) <= new Date(dateDebut)) {
+        const newEndDate = new Date(dateDebut);
+        newEndDate.setHours(newEndDate.getHours() + 1); // Ajouter 1 heure
+        dateFinInput.value = newEndDate.toISOString().slice(0, 16);
+    }
+});
+
 // Soumission du formulaire
 document.getElementById('eventForm').addEventListener('submit', function(e) {
-    updateDateTimeFields();
-
     if (!validateCurrentStep()) {
         e.preventDefault();
         alert('Veuillez corriger les erreurs avant de soumettre le formulaire.');
@@ -675,10 +730,13 @@ document.getElementById('eventForm').addEventListener('submit', function(e) {
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', function() {
-    // Validation en temps réel des dates
-    document.getElementById('date_debut').addEventListener('change', updateDateTimeFields);
-    document.getElementById('heure_debut').addEventListener('change', updateDateTimeFields);
-    document.getElementById('heure_fin').addEventListener('change', updateDateTimeFields);
+    // Mettre à jour la date de fin minimale au chargement
+    const dateDebut = document.getElementById('date_debut');
+    const dateFin = document.getElementById('date_fin');
+
+    if (dateDebut.value) {
+        dateFin.min = dateDebut.value;
+    }
 });
 </script>
 @endpush

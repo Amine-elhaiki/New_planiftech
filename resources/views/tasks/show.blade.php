@@ -1,1174 +1,1125 @@
-{{--
-==================================================
-FICHIER : resources/views/tasks/show.blade.php
-DESCRIPTION : Page de détails d'une tâche - Version CSS corrigée
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
-@extends('layouts.app')
-
-@section('title', 'Détails de la tâche')
-
-@push('styles')
-<style>
-    :root {
-        --primary-color: #4f46e5;
-        --primary-light: #6366f1;
-        --primary-dark: #3730a3;
-        --success-color: #10b981;
-        --warning-color: #f59e0b;
-        --danger-color: #ef4444;
-        --info-color: #06b6d4;
-        --gray-50: #f9fafb;
-        --gray-100: #f3f4f6;
-        --gray-200: #e5e7eb;
-        --gray-300: #d1d5db;
-        --gray-400: #9ca3af;
-        --gray-500: #6b7280;
-        --gray-600: #4b5563;
-        --gray-700: #374151;
-        --gray-800: #1f2937;
-        --gray-900: #111827;
-        --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        --card-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        --border-radius: 12px;
-        --border-radius-lg: 16px;
-    }
-
-    body {
-        background-color: var(--gray-50);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
-    /* Header de la page */
-    .page-header {
-        background: white;
-        border-radius: var(--border-radius-lg);
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: var(--card-shadow);
-        border: 1px solid var(--gray-200);
-    }
-
-    .breadcrumb-nav {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        font-size: 0.875rem;
-        color: var(--gray-500);
-    }
-
-    .breadcrumb-nav a {
-        color: var(--primary-color);
-        text-decoration: none;
-        transition: color 0.2s ease;
-    }
-
-    .breadcrumb-nav a:hover {
-        color: var(--primary-dark);
-    }
-
-    .task-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--gray-900);
-        margin-bottom: 1rem;
-        line-height: 1.2;
-    }
-
-    .task-badges {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-    }
-
-    .badge {
-        padding: 0.375rem 0.875rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
-    }
-
-    .badge.priority-haute {
-        background: rgba(239, 68, 68, 0.1);
-        color: var(--danger-color);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-
-    .badge.priority-moyenne {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--warning-color);
-        border: 1px solid rgba(245, 158, 11, 0.2);
-    }
-
-    .badge.priority-basse {
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--success-color);
-        border: 1px solid rgba(16, 185, 129, 0.2);
-    }
-
-    .badge.status-a_faire {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--warning-color);
-        border: 1px solid rgba(245, 158, 11, 0.2);
-    }
-
-    .badge.status-en_cours {
-        background: rgba(6, 182, 212, 0.1);
-        color: var(--info-color);
-        border: 1px solid rgba(6, 182, 212, 0.2);
-    }
-
-    .badge.status-termine {
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--success-color);
-        border: 1px solid rgba(16, 185, 129, 0.2);
-    }
-
-    .badge.overdue {
-        background: rgba(239, 68, 68, 0.1);
-        color: var(--danger-color);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0%, 100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.7;
-        }
-    }
-
-    /* Actions */
-    .actions-bar {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-    }
-
-    .btn {
-        padding: 0.625rem 1.25rem;
-        border-radius: var(--border-radius);
-        font-weight: 500;
-        font-size: 0.875rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-primary {
-        background: var(--primary-color);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: var(--primary-dark);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-    }
-
-    .btn-success {
-        background: var(--success-color);
-        color: white;
-    }
-
-    .btn-success:hover {
-        background: #059669;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-
-    .btn-danger {
-        background: var(--danger-color);
-        color: white;
-    }
-
-    .btn-danger:hover {
-        background: #dc2626;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    }
-
-    .btn-outline {
-        background: white;
-        color: var(--gray-600);
-        border: 1px solid var(--gray-300);
-    }
-
-    .btn-outline:hover {
-        background: var(--gray-50);
-        color: var(--gray-900);
-    }
-
-    /* Layout principal */
-    .main-content {
-        display: grid;
-        grid-template-columns: 1fr 350px;
-        gap: 2rem;
-    }
-
-    .content-section {
-        background: white;
-        border-radius: var(--border-radius-lg);
-        padding: 2rem;
-        box-shadow: var(--card-shadow);
-        border: 1px solid var(--gray-200);
-        height: fit-content;
-        margin-bottom: 2rem;
-    }
-
-    .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--gray-900);
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .section-title i {
-        color: var(--primary-color);
-    }
-
-    /* Description */
-    .description-text {
-        font-size: 1rem;
-        line-height: 1.6;
-        color: var(--gray-700);
-        margin-bottom: 0;
-    }
-
-    /* Progression */
-    .progress-container {
-        position: relative;
-        margin-bottom: 1rem;
-    }
-
-    .progress-circle {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto;
-        position: relative;
-    }
-
-    .progress-circle svg {
-        transform: rotate(-90deg);
-        width: 100%;
-        height: 100%;
-    }
-
-    .progress-bg {
-        stroke: var(--gray-200);
-        stroke-width: 8;
-        fill: none;
-    }
-
-    .progress-bar {
-        stroke: var(--primary-color);
-        stroke-width: 8;
-        fill: none;
-        stroke-linecap: round;
-        transition: stroke-dashoffset 0.5s ease;
-    }
-
-    .progress-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-    }
-
-    .progress-percentage {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--gray-900);
-        display: block;
-    }
-
-    .progress-label {
-        font-size: 0.75rem;
-        color: var(--gray-500);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .progress-status {
-        text-align: center;
-        margin-top: 1rem;
-        font-size: 0.875rem;
-        color: var(--gray-600);
-    }
-
-    /* Historique */
-    .timeline {
-        position: relative;
-        padding-left: 2rem;
-    }
-
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 0.75rem;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: var(--gray-200);
-    }
-
-    .timeline-item {
-        position: relative;
-        margin-bottom: 1.5rem;
-    }
-
-    .timeline-item:last-child {
-        margin-bottom: 0;
-    }
-
-    .timeline-marker {
-        position: absolute;
-        left: -2rem;
-        top: 0.25rem;
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 0 0 2px var(--primary-color);
-        background: var(--primary-color);
-        z-index: 1;
-    }
-
-    .timeline-content h4 {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--gray-900);
-        margin-bottom: 0.25rem;
-    }
-
-    .timeline-content p {
-        font-size: 0.875rem;
-        color: var(--gray-500);
-        margin-bottom: 0;
-    }
-
-    /* Sidebar */
-    .sidebar-section {
-        background: white;
-        border-radius: var(--border-radius-lg);
-        padding: 1.5rem;
-        box-shadow: var(--card-shadow);
-        border: 1px solid var(--gray-200);
-        margin-bottom: 1.5rem;
-        height: fit-content;
-    }
-
-    .sidebar-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--gray-900);
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .sidebar-title i {
-        color: var(--primary-color);
-    }
-
-    /* Info items */
-    .info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--gray-100);
-    }
-
-    .info-item:last-child {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-    }
-
-    .info-label {
-        font-size: 0.875rem;
-        color: var(--gray-500);
-        font-weight: 500;
-        flex-shrink: 0;
-        width: 80px;
-    }
-
-    .info-value {
-        font-size: 0.875rem;
-        color: var(--gray-900);
-        text-align: right;
-        flex-grow: 1;
-    }
-
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .user-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-
-    .user-details h4 {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--gray-900);
-        margin-bottom: 0.125rem;
-    }
-
-    .user-details p {
-        font-size: 0.75rem;
-        color: var(--gray-500);
-        margin-bottom: 0;
-    }
-
-    /* Actions rapides */
-    .quick-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .action-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    /* Zone de danger */
-    .danger-zone {
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        background: rgba(239, 68, 68, 0.02);
-    }
-
-    .danger-zone .sidebar-title {
-        color: var(--danger-color);
-    }
-
-    .danger-zone .sidebar-title i {
-        color: var(--danger-color);
-    }
-
-    /* Modal */
-    .modal-content {
-        border: none;
-        border-radius: var(--border-radius-lg);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    }
-
-    .modal-header {
-        border-bottom: 1px solid var(--gray-200);
-        padding: 1.5rem;
-    }
-
-    .modal-title {
-        font-weight: 600;
-        color: var(--gray-900);
-    }
-
-    .modal-body {
-        padding: 1.5rem;
-    }
-
-    .form-label {
-        font-weight: 500;
-        color: var(--gray-700);
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .form-control, .form-select {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--gray-300);
-        border-radius: var(--border-radius);
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-    }
-
-    .form-control:focus, .form-select:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    }
-
-    .form-range {
-        accent-color: var(--primary-color);
-    }
-
-    .range-value {
-        background: var(--primary-color);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-
-    /* Responsive */
-    @media (max-width: 1024px) {
-        .main-content {
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlanifTech ORMVAT - Gestion Améliorée</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* Palette de couleurs ORMVAT - Thème Agricole/Hydraulique */
+            --primary-water: #2E86AB;        /* Bleu eau principale */
+            --primary-water-light: #A8DCEF;  /* Bleu eau clair */
+            --primary-water-dark: #1B5E7C;   /* Bleu eau foncé */
+
+            --secondary-earth: #8B4513;      /* Terre/sol */
+            --secondary-earth-light: #D4A574; /* Terre claire */
+
+            --accent-agriculture: #4A7C59;   /* Vert agriculture */
+            --accent-agriculture-light: #7FB285; /* Vert clair */
+            --accent-agriculture-dark: #2F5233;  /* Vert foncé */
+
+            --success-harvest: #22C55E;      /* Vert réussite */
+            --warning-sun: #F59E0B;          /* Orange soleil */
+            --danger-drought: #EF4444;       /* Rouge sécheresse */
+            --info-sky: #06B6D4;            /* Bleu ciel */
+
+            --neutral-light: #F8FAFC;        /* Gris très clair */
+            --neutral: #64748B;              /* Gris moyen */
+            --neutral-dark: #1E293B;         /* Gris foncé */
+
+            --gradient-water: linear-gradient(135deg, var(--primary-water) 0%, var(--info-sky) 100%);
+            --gradient-earth: linear-gradient(135deg, var(--secondary-earth) 0%, var(--secondary-earth-light) 100%);
+            --gradient-agriculture: linear-gradient(135deg, var(--accent-agriculture) 0%, var(--accent-agriculture-light) 100%);
+
+            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+            --border-radius-sm: 6px;
+            --border-radius: 12px;
+            --border-radius-lg: 16px;
+            --border-radius-xl: 24px;
         }
 
-        .actions-bar {
-            flex-wrap: wrap;
+        body {
+            background: linear-gradient(135deg, #F0F9FF 0%, #F8FAFC 50%, #F0FDF4 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
         }
-    }
 
-    @media (max-width: 768px) {
-        .page-header {
-            padding: 1.5rem;
+        /* Header ORMVAT */
+        .ormvat-header {
+            background: var(--gradient-water);
+            color: white;
+            padding: 2rem 0;
+            border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ormvat-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: rotate(45deg);
+        }
+
+        .ormvat-header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -5%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }
+
+        .ormvat-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .ormvat-header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            position: relative;
+        }
+
+        /* Navigation Tabs Améliorées */
+        .nav-tabs-ormvat {
+            border: none;
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 0.5rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 2rem;
+        }
+
+        .nav-tabs-ormvat .nav-link {
+            border: none;
+            border-radius: var(--border-radius);
+            color: var(--neutral);
+            font-weight: 500;
+            padding: 1rem 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tabs-ormvat .nav-link:hover {
+            background: var(--primary-water-light);
+            color: var(--primary-water-dark);
+            transform: translateY(-2px);
+        }
+
+        .nav-tabs-ormvat .nav-link.active {
+            background: var(--gradient-water);
+            color: white;
+            box-shadow: var(--shadow-medium);
+        }
+
+        /* Cards de Tâches Améliorées */
+        .task-card-enhanced {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            border: none;
+            box-shadow: var(--shadow-soft);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .task-card-enhanced:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .task-card-enhanced::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-agriculture);
+        }
+
+        .task-card-enhanced.priority-haute::before {
+            background: linear-gradient(180deg, var(--danger-drought) 0%, var(--warning-sun) 100%);
+        }
+
+        .task-card-enhanced.priority-moyenne::before {
+            background: linear-gradient(180deg, var(--warning-sun) 0%, var(--secondary-earth-light) 100%);
+        }
+
+        .task-card-enhanced.priority-basse::before {
+            background: linear-gradient(180deg, var(--accent-agriculture) 0%, var(--success-harvest) 100%);
+        }
+
+        .task-header {
+            padding: 1.5rem 1.5rem 1rem 1.5rem;
         }
 
         .task-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--neutral-dark);
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .task-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .task-badge.status-a_faire {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-sun);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .task-badge.status-en_cours {
+            background: rgba(46, 134, 171, 0.1);
+            color: var(--primary-water);
+            border: 1px solid rgba(46, 134, 171, 0.2);
+        }
+
+        .task-badge.status-termine {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-harvest);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .task-progress {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+        }
+
+        .progress-container {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar-custom {
+            height: 8px;
+            border-radius: 10px;
+            background: var(--neutral-light);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-agriculture);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .task-assignee {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0 1.5rem 1.5rem 1.5rem;
+        }
+
+        .avatar-enhanced {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-water);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: var(--shadow-soft);
+        }
+
+        /* Calendrier Amélioré */
+        .calendar-container-enhanced {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            box-shadow: var(--shadow-medium);
+            margin-bottom: 2rem;
+        }
+
+        .fc-toolbar-title {
+            color: var(--neutral-dark) !important;
+            font-weight: 700 !important;
+            font-size: 1.8rem !important;
+        }
+
+        .fc-button-primary {
+            background: var(--gradient-water) !important;
+            border: none !important;
+            border-radius: var(--border-radius-sm) !important;
+            padding: 0.5rem 1rem !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .fc-button-primary:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: var(--shadow-medium) !important;
+        }
+
+        .fc-button-primary:not(:disabled).fc-button-active {
+            background: var(--primary-water-dark) !important;
+        }
+
+        .fc-today-button {
+            background: var(--gradient-agriculture) !important;
+        }
+
+        .fc-daygrid-day {
+            transition: background-color 0.2s ease;
+        }
+
+        .fc-daygrid-day:hover {
+            background-color: var(--primary-water-light) !important;
+        }
+
+        .fc-event {
+            border: none !important;
+            border-radius: var(--border-radius-sm) !important;
+            padding: 0.25rem 0.5rem !important;
+            font-weight: 500 !important;
+            box-shadow: var(--shadow-soft) !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .fc-event:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: var(--shadow-medium) !important;
+        }
+
+        .fc-event.intervention {
+            background: linear-gradient(135deg, var(--danger-drought) 0%, #FF6B6B 100%) !important;
+        }
+
+        .fc-event.reunion {
+            background: var(--gradient-water) !important;
+        }
+
+        .fc-event.formation {
+            background: var(--gradient-agriculture) !important;
+        }
+
+        .fc-event.visite {
+            background: var(--gradient-earth) !important;
+        }
+
+        /* Événements Cards */
+        .event-card-enhanced {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            border: none;
+            box-shadow: var(--shadow-soft);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .event-card-enhanced:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .event-type-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .event-type-indicator.intervention {
+            background: linear-gradient(90deg, var(--danger-drought) 0%, #FF6B6B 100%);
+        }
+
+        .event-type-indicator.reunion {
+            background: var(--gradient-water);
+        }
+
+        .event-type-indicator.formation {
+            background: var(--gradient-agriculture);
+        }
+
+        .event-type-indicator.visite {
+            background: var(--gradient-earth);
+        }
+
+        .event-icon-enhanced {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 1.5rem;
+            color: white;
+            margin-right: 1rem;
+            box-shadow: var(--shadow-soft);
         }
 
-        .content-section {
+        .event-icon-enhanced.intervention {
+            background: linear-gradient(135deg, var(--danger-drought) 0%, #FF6B6B 100%);
+        }
+
+        .event-icon-enhanced.reunion {
+            background: var(--gradient-water);
+        }
+
+        .event-icon-enhanced.formation {
+            background: var(--gradient-agriculture);
+        }
+
+        .event-icon-enhanced.visite {
+            background: var(--gradient-earth);
+        }
+
+        /* Statistiques Dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card-enhanced {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            box-shadow: var(--shadow-soft);
+            border: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card-enhanced:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .stat-card-enhanced::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-water);
+        }
+
+        .stat-card-enhanced.tasks::before {
+            background: var(--gradient-agriculture);
+        }
+
+        .stat-card-enhanced.events::before {
+            background: var(--gradient-water);
+        }
+
+        .stat-card-enhanced.projects::before {
+            background: var(--gradient-earth);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--neutral-dark);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--neutral);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.9rem;
+        }
+
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .stat-trend.positive {
+            color: var(--success-harvest);
+        }
+
+        .stat-trend.negative {
+            color: var(--danger-drought);
+        }
+
+        /* Filtres Améliorés */
+        .filters-enhanced {
+            background: white;
+            border-radius: var(--border-radius-lg);
             padding: 1.5rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 2rem;
         }
 
-        .sidebar-section {
-            padding: 1rem;
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
         }
 
-        .actions-bar {
-            flex-direction: column;
-            align-items: stretch;
+        .form-control-enhanced, .form-select-enhanced {
+            border: 2px solid transparent;
+            background: var(--neutral-light);
+            border-radius: var(--border-radius-sm);
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
         }
 
-        .btn {
+        .form-control-enhanced:focus, .form-select-enhanced:focus {
+            border-color: var(--primary-water);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(46, 134, 171, 0.1);
+            outline: none;
+        }
+
+        .btn-filter {
+            background: var(--gradient-water);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-filter:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+            color: white;
+        }
+
+        /* Actions rapides */
+        .quick-actions {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        .fab-enhanced {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--gradient-agriculture);
+            color: white;
+            border: none;
+            font-size: 1.5rem;
+            box-shadow: var(--shadow-strong);
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
-    }
 
-    /* Notifications */
-    .notification {
-        background: white;
-        border-radius: var(--border-radius);
-        padding: 1rem 1.5rem;
-        box-shadow: var(--card-shadow-lg);
-        border: 1px solid var(--gray-200);
-        margin-bottom: 0.5rem;
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
-        max-width: 400px;
-    }
+        .fab-enhanced:hover {
+            transform: scale(1.1);
+            box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.2);
+        }
 
-    .notification.success {
-        border-left: 4px solid var(--success-color);
-    }
+        .fab-enhanced.secondary {
+            background: var(--gradient-water);
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+        }
 
-    .notification.error {
-        border-left: 4px solid var(--danger-color);
-    }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .ormvat-header h1 {
+                font-size: 2rem;
+            }
 
-    .notification.show {
-        transform: translateX(0);
-    }
-</style>
-@endpush
+            .filter-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
 
-@section('content')
-<!-- Configuration JavaScript -->
-<div id="app-config"
-     data-csrf="{{ csrf_token() }}"
-     data-base-url="{{ url('/') }}"
-     data-task-id="{{ $task->id }}"
-     style="display: none;">
-</div>
+            .quick-actions {
+                bottom: 1rem;
+                right: 1rem;
+            }
 
-<div class="container-fluid px-4">
-    <!-- En-tête de la page -->
-    <div class="page-header">
-        <div class="breadcrumb-nav">
-            <a href="{{ route('tasks.index') }}">
-                <i class="bi bi-arrow-left me-1"></i>Tâches
-            </a>
-            <i class="bi bi-chevron-right"></i>
-            <span>Détails</span>
-        </div>
+            .task-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
 
-        <h1 class="task-title">{{ $task->titre }}</h1>
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-        <div class="task-badges">
-            <span class="badge priority-{{ $task->priorite }}">
-                {{ ucfirst($task->priorite) }} priorité
-            </span>
-            <span class="badge status-{{ $task->statut }}">
-                {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
-            </span>
-            @if($task->date_echeance < now() && in_array($task->statut, ['a_faire', 'en_cours']))
-                <span class="badge overdue">
-                    <i class="bi bi-exclamation-triangle me-1"></i>En retard
-                </span>
-            @endif
-        </div>
+        .animate-fade-in {
+            animation: fadeInUp 0.5s ease-out;
+        }
 
-        @if(auth()->user()->role === 'admin' || $task->id_utilisateur === auth()->id())
-        <div class="actions-bar">
-            @if($task->statut !== 'termine')
-            <button class="btn btn-success" data-action="complete">
-                <i class="bi bi-check-lg"></i>
-                Marquer comme terminé
-            </button>
-            @endif
+        /* Thème sombre pour sections spéciales */
+        .dark-section {
+            background: var(--neutral-dark);
+            color: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            margin: 2rem 0;
+        }
 
-            <button class="btn btn-primary" data-action="status">
-                <i class="bi bi-pencil"></i>
-                Modifier le statut
-            </button>
-
-            @if(auth()->user()->role === 'admin')
-            <a href="{{ route('tasks.edit', $task) }}" class="btn btn-outline">
-                <i class="bi bi-gear"></i>
-                Modifier
-            </a>
-
-            <button class="btn btn-danger" data-action="delete">
-                <i class="bi bi-trash"></i>
-                Supprimer
-            </button>
-            @endif
-        </div>
-        @endif
-    </div>
-
-    <!-- Contenu principal -->
-    <div class="main-content">
-        <!-- Colonne principale -->
-        <div>
-            <!-- Description -->
-            <div class="content-section">
-                <h2 class="section-title">
-                    <i class="bi bi-file-text"></i>
-                    Description
-                </h2>
-                <p class="description-text">{{ $task->description }}</p>
-            </div>
-
-            <!-- Progression -->
-            <div class="content-section">
-                <h2 class="section-title">
-                    <i class="bi bi-bar-chart"></i>
-                    Progression
-                </h2>
-
-                <div class="progress-container">
-                    @php
-                        $progress = $task->progression ?? 0;
-                        $circumference = 2 * pi() * 52;
-                        $offset = $circumference - ($progress / 100) * $circumference;
-                    @endphp
-
-                    <div class="progress-circle">
-                        <svg>
-                            <circle class="progress-bg" cx="60" cy="60" r="52"></circle>
-                            <circle class="progress-bar" cx="60" cy="60" r="52"
-                                    stroke-dasharray="{{ $circumference }}"
-                                    stroke-dashoffset="{{ $offset }}"></circle>
-                        </svg>
-                        <div class="progress-text">
-                            <span class="progress-percentage">{{ $progress }}%</span>
-                            <span class="progress-label">Terminé</span>
-                        </div>
-                    </div>
-
-                    <div class="progress-status">
-                        @if($progress == 0)
-                            Cette tâche n'a pas encore été commencée
-                        @elseif($progress < 100)
-                            Tâche en cours d'exécution
-                        @else
-                            Tâche terminée avec succès
-                        @endif
+        .dark-section h3 {
+            color: var(--primary-water-light);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header ORMVAT -->
+    <div class="ormvat-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="bi bi-water me-3"></i>PlanifTech ORMVAT</h1>
+                    <p class="subtitle">Gestion Intelligente des Interventions Hydrauliques et Agricoles</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-light"><i class="bi bi-person me-2"></i>Mon Profil</button>
+                        <button class="btn btn-outline-light"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</button>
                     </div>
                 </div>
             </div>
-
-            <!-- Historique -->
-            <div class="content-section">
-                <h2 class="section-title">
-                    <i class="bi bi-clock-history"></i>
-                    Historique
-                </h2>
-
-                <div class="timeline">
-                    <div class="timeline-item">
-                        <div class="timeline-marker"></div>
-                        <div class="timeline-content">
-                            <h4>Tâche créée</h4>
-                            <p>{{ $task->created_at->format('d/m/Y à H:i') }}</p>
-                        </div>
-                    </div>
-
-                    @if($task->updated_at != $task->created_at)
-                    <div class="timeline-item">
-                        <div class="timeline-marker"></div>
-                        <div class="timeline-content">
-                            <h4>Dernière modification</h4>
-                            <p>{{ $task->updated_at->format('d/m/Y à H:i') }}</p>
-                        </div>
-                    </div>
-                    @endif
-
-                    @if($task->statut === 'termine')
-                    <div class="timeline-item">
-                        <div class="timeline-marker" style="background: var(--success-color); box-shadow: 0 0 0 2px var(--success-color);"></div>
-                        <div class="timeline-content">
-                            <h4>Tâche terminée</h4>
-                            <p>{{ $task->updated_at->format('d/m/Y à H:i') }}</p>
-                        </div>
-                    </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div>
-            <!-- Informations générales -->
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="bi bi-info-circle"></i>
-                    Informations
-                </h3>
-
-                <div class="info-item">
-                    <span class="info-label">Échéance</span>
-                    <div class="info-value">
-                        <div style="font-weight: 600; {{ $task->date_echeance < now() && $task->statut !== 'termine' ? 'color: var(--danger-color);' : '' }}">
-                            {{ $task->date_echeance->format('d/m/Y à H:i') }}
-                        </div>
-                        <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
-                            @if($task->date_echeance < now() && $task->statut !== 'termine')
-                                En retard de {{ $task->date_echeance->diffForHumans() }}
-                            @else
-                                {{ $task->date_echeance->diffForHumans() }}
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <div class="info-item">
-                    <span class="info-label">Priorité</span>
-                    <span class="info-value">
-                        <span class="badge priority-{{ $task->priorite }}" style="font-size: 0.75rem;">
-                            {{ ucfirst($task->priorite) }}
-                        </span>
-                    </span>
-                </div>
-
-                <div class="info-item">
-                    <span class="info-label">Statut</span>
-                    <span class="info-value">
-                        <span class="badge status-{{ $task->statut }}" style="font-size: 0.75rem;">
-                            {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
-                        </span>
-                    </span>
-                </div>
-
-                <div class="info-item">
-                    <span class="info-label">Progression</span>
-                    <span class="info-value" style="font-weight: 600;">{{ $task->progression ?? 0 }}%</span>
-                </div>
-            </div>
-
-            <!-- Assignation -->
-            @if($task->utilisateur)
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="bi bi-person"></i>
-                    Assigné à
-                </h3>
-
-                <div class="user-info">
-                    <div class="user-avatar">
-                        {{ substr($task->utilisateur->prenom, 0, 1) }}{{ substr($task->utilisateur->nom, 0, 1) }}
-                    </div>
-                    <div class="user-details">
-                        <h4>{{ $task->utilisateur->prenom }} {{ $task->utilisateur->nom }}</h4>
-                        <p>{{ ucfirst($task->utilisateur->role) }}</p>
-                    </div>
-                </div>
-            </div>
-            @endif
-
-            <!-- Associations -->
-            @if($task->projet || $task->evenement)
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="bi bi-link"></i>
-                    Associations
-                </h3>
-
-                @if($task->projet)
-                <div class="info-item">
-                    <span class="info-label">Projet</span>
-                    <div class="info-value">
-                        <a href="{{ route('projects.show', $task->projet) }}" style="color: var(--primary-color); text-decoration: none;">
-                            <i class="bi bi-folder me-1"></i>{{ $task->projet->nom }}
-                        </a>
-                    </div>
-                </div>
-                @endif
-
-                @if($task->evenement)
-                <div class="info-item">
-                    <span class="info-label">Événement</span>
-                    <div class="info-value">
-                        <a href="{{ route('events.show', $task->evenement) }}" style="color: var(--primary-color); text-decoration: none;">
-                            <i class="bi bi-calendar-event me-1"></i>{{ $task->evenement->titre }}
-                        </a>
-                        <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
-                            {{ $task->evenement->date_debut->format('d/m/Y') }}
-                        </div>
-                    </div>
-                </div>
-                @endif
-            </div>
-            @endif
-
-            <!-- Actions rapides -->
-            @if(auth()->user()->role === 'admin' || $task->id_utilisateur === auth()->id())
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="bi bi-lightning"></i>
-                    Actions rapides
-                </h3>
-
-                <div class="quick-actions">
-                    @if($task->statut !== 'termine')
-                    <button class="btn btn-success action-btn" data-action="complete">
-                        <i class="bi bi-check-circle me-2"></i>
-                        Marquer comme terminé
-                    </button>
-                    @endif
-
-                    <button class="btn btn-primary action-btn" data-action="status">
-                        <i class="bi bi-arrow-repeat me-2"></i>
-                        Mettre à jour le statut
-                    </button>
-
-                    @if(auth()->user()->role === 'admin')
-                    <a href="{{ route('tasks.edit', $task) }}" class="btn btn-outline action-btn">
-                        <i class="bi bi-pencil me-2"></i>
-                        Modifier la tâche
-                    </a>
-                    @endif
-                </div>
-            </div>
-            @endif
-
-            <!-- Zone de danger (Admin seulement) -->
-            @if(auth()->user()->role === 'admin')
-            <div class="sidebar-section danger-zone">
-                <h3 class="sidebar-title">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    Zone de danger
-                </h3>
-
-                <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 1rem;">
-                    Cette action est irréversible et supprimera définitivement la tâche.
-                </p>
-
-                <button class="btn btn-danger action-btn" data-action="delete">
-                    <i class="bi bi-trash me-2"></i>
-                    Supprimer la tâche
-                </button>
-            </div>
-            @endif
         </div>
     </div>
-</div>
 
-<!-- Modal de mise à jour du statut -->
-<div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-gear me-2"></i>Mettre à jour le statut
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="statusForm">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="modalStatut" class="form-label">Statut</label>
-                        <select class="form-select" id="modalStatut" name="statut">
-                            <option value="a_faire" {{ $task->statut === 'a_faire' ? 'selected' : '' }}>À faire</option>
-                            <option value="en_cours" {{ $task->statut === 'en_cours' ? 'selected' : '' }}>En cours</option>
-                            <option value="termine" {{ $task->statut === 'termine' ? 'selected' : '' }}>Terminé</option>
-                        </select>
+    <div class="container-fluid px-4">
+        <!-- Navigation Améliorée -->
+        <ul class="nav nav-tabs nav-tabs-ormvat" id="mainTabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#dashboard-tab">
+                    <i class="bi bi-speedometer2 me-2"></i>Tableau de Bord
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tasks-tab">
+                    <i class="bi bi-check2-square me-2"></i>Tâches
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#events-tab">
+                    <i class="bi bi-calendar3 me-2"></i>Événements
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#calendar-tab">
+                    <i class="bi bi-calendar-month me-2"></i>Calendrier
+                </a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-pane fade show active" id="dashboard-tab">
+                <!-- Statistiques -->
+                <div class="stats-grid animate-fade-in">
+                    <div class="stat-card-enhanced tasks">
+                        <div class="stat-number">24</div>
+                        <div class="stat-label">Tâches Actives</div>
+                        <div class="stat-trend positive">
+                            <i class="bi bi-arrow-up"></i>+12% cette semaine
+                        </div>
                     </div>
-
-                    <div class="mb-3">
-                        <label for="modalProgression" class="form-label">Progression (%)</label>
-                        <input type="range" class="form-range" id="modalProgression"
-                               name="progression" min="0" max="100" value="{{ $task->progression ?? 0 }}">
-                        <div class="text-center mt-2">
-                            <span id="progressValue" class="range-value">{{ $task->progression ?? 0 }}%</span>
+                    <div class="stat-card-enhanced events">
+                        <div class="stat-number">8</div>
+                        <div class="stat-label">Événements Prévus</div>
+                        <div class="stat-trend positive">
+                            <i class="bi bi-arrow-up"></i>+3 nouveaux
+                        </div>
+                    </div>
+                    <div class="stat-card-enhanced projects">
+                        <div class="stat-number">5</div>
+                        <div class="stat-label">Projets en Cours</div>
+                        <div class="stat-trend negative">
+                            <i class="bi bi-arrow-down"></i>-1 complété
+                        </div>
+                    </div>
+                    <div class="stat-card-enhanced">
+                        <div class="stat-number">87%</div>
+                        <div class="stat-label">Taux de Réussite</div>
+                        <div class="stat-trend positive">
+                            <i class="bi bi-arrow-up"></i>+5% ce mois
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline" data-bs-dismiss="modal">
-                        Annuler
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-2"></i>Mettre à jour
-                    </button>
+
+                <!-- Aperçu Rapide -->
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="task-card-enhanced priority-haute animate-fade-in">
+                            <div class="task-header">
+                                <h4 class="task-title">Réparation Urgente - Canal Principal B4</h4>
+                                <div class="task-meta">
+                                    <span class="task-badge status-en_cours">En Cours</span>
+                                    <span class="badge bg-danger">Haute Priorité</span>
+                                    <span class="badge bg-warning">En Retard</span>
+                                </div>
+                                <p class="text-muted mb-0">Fuite importante détectée sur le canal principal du secteur B4. Intervention immédiate requise pour éviter la perte d'eau.</p>
+                            </div>
+                            <div class="task-progress">
+                                <div class="progress-container">
+                                    <div class="progress-bar-custom">
+                                        <div class="progress-fill" style="width: 65%"></div>
+                                    </div>
+                                    <small class="text-muted">65% terminé</small>
+                                </div>
+                            </div>
+                            <div class="task-assignee">
+                                <div class="avatar-enhanced">MB</div>
+                                <div>
+                                    <div class="fw-bold">Mohamed Benali</div>
+                                    <small class="text-muted">Technicien Hydraulique</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="event-card-enhanced animate-fade-in" style="animation-delay: 0.1s">
+                            <div class="event-type-indicator intervention"></div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-start">
+                                    <div class="event-icon-enhanced intervention">
+                                        <i class="bi bi-tools"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title">Maintenance Préventive - Station P12</h5>
+                                        <p class="card-text text-muted">Contrôle et entretien de la station de pompage P12 selon le planning annuel.</p>
+                                        <div class="d-flex gap-2 mb-2">
+                                            <span class="badge bg-primary">Intervention</span>
+                                            <span class="badge bg-info">Planifié</span>
+                                        </div>
+                                        <div class="d-flex align-items-center text-muted">
+                                            <i class="bi bi-calendar3 me-2"></i>
+                                            <span>Demain 08:00 - 12:00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <!-- Tasks Tab -->
+            <div class="tab-pane fade" id="tasks-tab">
+                <!-- Filtres Tâches -->
+                <div class="filters-enhanced">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-funnel me-2"></i>Filtrer les Tâches</h6>
+                    <div class="filter-group">
+                        <div>
+                            <label class="form-label">Recherche</label>
+                            <input type="text" class="form-control-enhanced" placeholder="Rechercher une tâche...">
+                        </div>
+                        <div>
+                            <label class="form-label">Statut</label>
+                            <select class="form-select-enhanced">
+                                <option>Tous les statuts</option>
+                                <option>À faire</option>
+                                <option>En cours</option>
+                                <option>Terminé</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Priorité</label>
+                            <select class="form-select-enhanced">
+                                <option>Toutes priorités</option>
+                                <option>Haute</option>
+                                <option>Moyenne</option>
+                                <option>Basse</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn btn-filter">
+                                <i class="bi bi-search me-2"></i>Filtrer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liste des Tâches -->
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="task-card-enhanced priority-haute animate-fade-in">
+                            <div class="task-header">
+                                <h4 class="task-title">Inspection Canal Secteur A3</h4>
+                                <div class="task-meta">
+                                    <span class="task-badge status-a_faire">À Faire</span>
+                                    <span class="badge bg-danger">Haute</span>
+                                </div>
+                                <p class="text-muted mb-0">Vérification complète de l'état du canal d'irrigation du secteur A3 suite aux récentes précipitations.</p>
+                            </div>
+                            <div class="task-progress">
+                                <div class="progress-container">
+                                    <div class="progress-bar-custom">
+                                        <div class="progress-fill" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted">0% terminé</small>
+                                </div>
+                            </div>
+                            <div class="task-assignee">
+                                <div class="avatar-enhanced">AH</div>
+                                <div>
+                                    <div class="fw-bold">Ahmed Hassan</div>
+                                    <small class="text-muted">Technicien Terrain</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="task-card-enhanced priority-moyenne animate-fade-in" style="animation-delay: 0.1s">
+                            <div class="task-header">
+                                <h4 class="task-title">Relevé Compteurs Zone Est</h4>
+                                <div class="task-meta">
+                                    <span class="task-badge status-en_cours">En Cours</span>
+                                    <span class="badge bg-warning">Moyenne</span>
+                                </div>
+                                <p class="text-muted mb-0">Collecte mensuelle des données de consommation d'eau des exploitations agricoles de la zone Est.</p>
+                            </div>
+                            <div class="task-progress">
+                                <div class="progress-container">
+                                    <div class="progress-bar-custom">
+                                        <div class="progress-fill" style="width: 45%"></div>
+                                    </div>
+                                    <small class="text-muted">45% terminé</small>
+                                </div>
+                            </div>
+                            <div class="task-assignee">
+                                <div class="avatar-enhanced">FK</div>
+                                <div>
+                                    <div class="fw-bold">Fatima Khemir</div>
+                                    <small class="text-muted">Technicienne Mesures</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="tab-pane fade" id="events-tab">
+                <!-- Filtres Événements -->
+                <div class="filters-enhanced">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-funnel me-2"></i>Filtrer les Événements</h6>
+                    <div class="filter-group">
+                        <div>
+                            <label class="form-label">Type</label>
+                            <select class="form-select-enhanced">
+                                <option>Tous les types</option>
+                                <option>Intervention</option>
+                                <option>Réunion</option>
+                                <option>Formation</option>
+                                <option>Visite</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Période</label>
+                            <select class="form-select-enhanced">
+                                <option>Cette semaine</option>
+                                <option>Ce mois</option>
+                                <option>Prochains 3 mois</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn btn-filter">
+                                <i class="bi bi-search me-2"></i>Filtrer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liste des Événements -->
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="event-card-enhanced animate-fade-in">
+                            <div class="event-type-indicator reunion"></div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-start">
+                                    <div class="event-icon-enhanced reunion">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title">Réunion Équipe Technique</h5>
+                                        <p class="card-text text-muted">Point mensuel sur l'avancement des projets et planification des interventions.</p>
+                                        <div class="d-flex gap-2 mb-2">
+                                            <span class="badge bg-primary">Réunion</span>
+                                            <span class="badge bg-success">Confirmé</span>
+                                        </div>
+                                        <div class="d-flex align-items-center text-muted mb-2">
+                                            <i class="bi bi-calendar3 me-2"></i>
+                                            <span>Vendredi 15 Mars, 09:00 - 11:00</span>
+                                        </div>
+                                        <div class="d-flex align-items-center text-muted">
+                                            <i class="bi bi-geo-alt me-2"></i>
+                                            <span>Salle de réunion principale</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="event-card-enhanced animate-fade-in" style="animation-delay: 0.1s">
+                            <div class="event-type-indicator formation"></div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-start">
+                                    <div class="event-icon-enhanced formation">
+                                        <i class="bi bi-book"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title">Formation Sécurité</h5>
+                                        <p class="card-text text-muted">Session de formation sur les nouvelles normes de sécurité pour les interventions terrain.</p>
+                                        <div class="d-flex gap-2 mb-2">
+                                            <span class="badge bg-success">Formation</span>
+                                            <span class="badge bg-warning">Planifié</span>
+                                        </div>
+                                        <div class="d-flex align-items-center text-muted mb-2">
+                                            <i class="bi bi-calendar3 me-2"></i>
+                                            <span>Lundi 18 Mars, 14:00 - 17:00</span>
+                                        </div>
+                                        <div class="d-flex align-items-center text-muted">
+                                            <i class="bi bi-geo-alt me-2"></i>
+                                            <span>Centre de formation</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Tab -->
+            <div class="tab-pane fade" id="calendar-tab">
+                <div class="calendar-container-enhanced">
+                    <div id="calendar-enhanced"></div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Zone des notifications -->
-<div id="notifications" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
-@endsection
+    <!-- Actions Rapides Flottantes -->
+    <div class="quick-actions">
+        <button class="fab-enhanced secondary" title="Nouveau Rapport">
+            <i class="bi bi-file-earmark-plus"></i>
+        </button>
+        <button class="fab-enhanced secondary" title="Nouvel Événement">
+            <i class="bi bi-calendar-plus"></i>
+        </button>
+        <button class="fab-enhanced" title="Nouvelle Tâche">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+    </div>
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Configuration
-    var config = document.getElementById('app-config');
-    var csrfToken = config.getAttribute('data-csrf');
-    var baseUrl = config.getAttribute('data-base-url');
-    var taskId = config.getAttribute('data-task-id');
+    <!-- Section Informative -->
+    <div class="container-fluid px-4 mt-5">
+        <div class="dark-section">
+            <div class="row">
+                <div class="col-md-8">
+                    <h3><i class="bi bi-info-circle me-2"></i>Système PlanifTech ORMVAT</h3>
+                    <p>Application de gestion intelligente des interventions hydrauliques et agricoles développée spécifiquement pour les besoins de l'Office Régional de Mise en Valeur Agricole du Tadla.</p>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-check2 me-2 text-success"></i>Gestion centralisée des tâches et événements</li>
+                        <li><i class="bi bi-check2 me-2 text-success"></i>Suivi en temps réel des interventions terrain</li>
+                        <li><i class="bi bi-check2 me-2 text-success"></i>Interface adaptée aux besoins spécifiques ORMVAT</li>
+                        <li><i class="bi bi-check2 me-2 text-success"></i>Optimisation des ressources hydrauliques et agricoles</li>
+                    </ul>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="p-4">
+                        <i class="bi bi-water" style="font-size: 4rem; color: var(--primary-water-light);"></i>
+                        <h4 class="mt-3">Innovation Hydraulique</h4>
+                        <p>Au service de l'agriculture marocaine</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    var statusModal = null;
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialisation du calendrier amélioré
+            const calendarEl = document.getElementById('calendar-enhanced');
 
-    // Initialisation
-    initModal();
-    initEventListeners();
-
-    function initModal() {
-        var modalEl = document.getElementById('statusModal');
-        if (modalEl && typeof bootstrap !== 'undefined') {
-            statusModal = new bootstrap.Modal(modalEl);
-        }
-    }
-
-    function initEventListeners() {
-        // Boutons d'action
-        document.addEventListener('click', function(e) {
-            var button = e.target.closest('[data-action]');
-            if (!button) return;
-
-            var action = button.getAttribute('data-action');
-
-            if (action === 'complete') {
-                markCompleted();
-            } else if (action === 'status') {
-                openStatusModal();
-            } else if (action === 'delete') {
-                deleteTask();
-            }
-        });
-
-        // Slider de progression
-        var progressSlider = document.getElementById('modalProgression');
-        if (progressSlider) {
-            progressSlider.addEventListener('input', function() {
-                updateProgressDisplay(this.value);
-            });
-        }
-
-        // Formulaire de statut
-        var statusForm = document.getElementById('statusForm');
-        if (statusForm) {
-            statusForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitStatusForm();
-            });
-        }
-    }
-
-    function markCompleted() {
-        if (!confirm('Marquer cette tâche comme terminée ?')) return;
-
-        var url = baseUrl + '/tasks/' + taskId + '/complete';
-
-        fetch(url, {
-            method: 'PATCH',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.success) {
-                showNotification('Tâche marquée comme terminée !', 'success');
-                setTimeout(function() {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                showNotification('Erreur lors de la mise à jour', 'error');
-            }
-        })
-        .catch(function(error) {
-            console.error('Erreur:', error);
-            showNotification('Erreur lors de la mise à jour', 'error');
-        });
-    }
-
-    function openStatusModal() {
-        if (statusModal) {
-            statusModal.show();
-        }
-    }
-
-    function updateProgressDisplay(value) {
-        var progressValue = document.getElementById('progressValue');
-        if (progressValue) {
-            progressValue.textContent = value + '%';
-        }
-
-        // Auto-ajustement du statut
-        var statusSelect = document.getElementById('modalStatut');
-        if (statusSelect) {
-            if (value == 0) {
-                statusSelect.value = 'a_faire';
-            } else if (value == 100) {
-                statusSelect.value = 'termine';
-            } else if (statusSelect.value === 'a_faire') {
-                statusSelect.value = 'en_cours';
-            }
-        }
-    }
-
-    function submitStatusForm() {
-        var formData = new FormData(document.getElementById('statusForm'));
-        var url = baseUrl + '/tasks/' + taskId + '/status';
-
-        fetch(url, {
-            method: 'PATCH',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json'
-            },
-            body: formData
-        })
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.success) {
-                if (statusModal) {
-                    statusModal.hide();
-                }
-                showNotification('Statut mis à jour avec succès !', 'success');
-                setTimeout(function() {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                showNotification('Erreur lors de la mise à jour', 'error');
-            }
-        })
-        .catch(function(error) {
-            console.error('Erreur:', error);
-            showNotification('Erreur lors de la mise à jour', 'error');
-        });
-    }
-
-    function deleteTask() {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.')) return;
-
-        var url = baseUrl + '/tasks/' + taskId;
-
-        fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json'
-            }
-        })
-        .then(function(response) {
-            if (response.ok) {
-                showNotification('Tâche supprimée avec succès !', 'success');
-                setTimeout(function() {
-                    window.location.href = baseUrl + '/tasks';
-                }, 1500);
-            } else {
-                showNotification('Erreur lors de la suppression', 'error');
-            }
-        })
-        .catch(function(error) {
-            console.error('Erreur:', error);
-            showNotification('Erreur lors de la suppression', 'error');
-        });
-    }
-
-    function showNotification(message, type) {
-        var container = document.getElementById('notifications');
-        if (!container) return;
-
-        var notification = document.createElement('div');
-        notification.className = 'notification ' + type;
-        notification.innerHTML =
-            '<div class="d-flex align-items-center justify-content-between">' +
-                '<div class="d-flex align-items-center">' +
-                    '<i class="bi bi-' + (type === 'success' ? 'check-circle' : 'exclamation-triangle') + ' me-2"></i>' +
-                    message +
-                '</div>' +
-                '<button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>' +
-            '</div>';
-
-        container.appendChild(notification);
-
-        // Animation d'entrée
-        setTimeout(function() {
-            notification.classList.add('show');
-        }, 100);
-
-        // Auto-suppression
-        setTimeout(function() {
-            if (notification.parentElement) {
-                notification.style.transform = 'translateX(100%)';
-                setTimeout(function() {
-                    if (notification.parentElement) {
-                        notification.remove();
+            if (calendarEl) {
+                const calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    locale: 'fr',
+                    height: 'auto',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                    },
+                    buttonText: {
+                        today: 'Aujourd\'hui',
+                        month: 'Mois',
+                        week: 'Semaine',
+                        day: 'Jour'
+                    },
+                    events: [
+                        {
+                            title: 'Maintenance Station P12',
+                            start: '2024-03-15T08:00:00',
+                            end: '2024-03-15T12:00:00',
+                            className: 'intervention',
+                            description: 'Maintenance préventive'
+                        },
+                        {
+                            title: 'Réunion Équipe',
+                            start: '2024-03-15T09:00:00',
+                            end: '2024-03-15T11:00:00',
+                            className: 'reunion',
+                            description: 'Point mensuel'
+                        },
+                        {
+                            title: 'Formation Sécurité',
+                            start: '2024-03-18T14:00:00',
+                            end: '2024-03-18T17:00:00',
+                            className: 'formation',
+                            description: 'Nouvelles normes'
+                        },
+                        {
+                            title: 'Visite Inspection Zone A',
+                            start: '2024-03-20T10:00:00',
+                            end: '2024-03-20T16:00:00',
+                            className: 'visite',
+                            description: 'Contrôle annuel'
+                        }
+                    ],
+                    eventClick: function(info) {
+                        alert('Événement: ' + info.event.title + '\n' + info.event.extendedProps.description);
+                    },
+                    dateClick: function(info) {
+                        alert('Date sélectionnée: ' + info.dateStr);
+                    },
+                    eventDidMount: function(info) {
+                        info.el.setAttribute('title', info.event.title + ' - ' + (info.event.extendedProps.description || ''));
                     }
-                }, 300);
+                });
+
+                calendar.render();
             }
-        }, 4000);
-    }
-});
-</script>
-@endpush
+
+            // Animation des cartes au scroll
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate-fade-in');
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.task-card-enhanced, .event-card-enhanced, .stat-card-enhanced').forEach(card => {
+                observer.observe(card);
+            });
+
+            // Gestion des actions rapides
+            document.querySelectorAll('.fab-enhanced').forEach(button => {
+                button.addEventListener('click', function() {
+                    const action = this.getAttribute('title');
+                    alert('Action: ' + action);
+                });
+            });
+
+            // Filtres interactifs
+            document.querySelectorAll('.form-select-enhanced').forEach(select => {
+                select.addEventListener('change', function() {
+                    console.log('Filtre changé:', this.value);
+                    // Ici vous ajouteriez la logique de filtrage
+                });
+            });
+
+            // Recherche en temps réel
+            document.querySelectorAll('.form-control-enhanced[placeholder*="Rechercher"]').forEach(input => {
+                let searchTimeout;
+                input.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        console.log('Recherche:', this.value);
+                        // Ici vous ajouteriez la logique de recherche
+                    }, 300);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
