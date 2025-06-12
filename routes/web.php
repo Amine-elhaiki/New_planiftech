@@ -44,7 +44,7 @@ Route::middleware('guest')->group(function () {
             request()->session()->regenerate();
 
             // Vérifier si l'utilisateur est actif
-           if (Auth::user()->statut !== 'actif') {
+            if (Auth::user()->statut !== 'actif') {
                 Auth::logout();
                 return back()->withErrors([
                     'email' => 'Votre compte a été désactivé. Contactez l\'administrateur.',
@@ -102,8 +102,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('users')->name('users.')->group(function () {
         // Routes accessibles aux admins ET techniciens (lecture)
         Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::get('/{user}', [UserController::class, 'show'])->name('show');
         Route::get('/search/api', [UserController::class, 'search'])->name('search');
+        Route::get('/{user}', [UserController::class, 'show'])->name('show');
 
         // Routes ADMIN SEULEMENT - modification/création
         Route::middleware('admin')->group(function () {
@@ -124,7 +124,7 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Gestion des tâches - ORDRE CORRIGÉ
     |--------------------------------------------------------------------------
@@ -134,6 +134,7 @@ Route::middleware(['auth'])->group(function () {
         // ✅ ROUTES SPÉCIALES EN PREMIER (avant les routes avec paramètres)
         Route::get('/api/list', [TaskController::class, 'api'])->name('api');
         Route::get('/calendar/data', [TaskController::class, 'calendar'])->name('calendar');
+        Route::get('/export', [TaskController::class, 'export'])->name('export');
 
         // Routes admin uniquement - AVANT les routes avec {task}
         Route::middleware('admin')->group(function () {
@@ -150,8 +151,6 @@ Route::middleware(['auth'])->group(function () {
         // Actions pour tous les utilisateurs sur leurs tâches
         Route::patch('/{task}/status', [TaskController::class, 'updateStatus'])->name('update-status');
         Route::patch('/{task}/complete', [TaskController::class, 'markCompleted'])->name('complete');
-        // Dans la section des routes d'événements, ajoutez :
-
 
         // Routes admin pour modification/suppression - APRÈS show
         Route::middleware('admin')->group(function () {
@@ -162,32 +161,35 @@ Route::middleware(['auth'])->group(function () {
     });
 
     /*
-|--------------------------------------------------------------------------
-| Gestion des événements
-|--------------------------------------------------------------------------
-*/
-Route::prefix('events')->name('events.')->group(function () {
-    Route::get('/', [EventController::class, 'index'])->name('index');
-    Route::get('/create', [EventController::class, 'create'])->name('create');
-    Route::post('/', [EventController::class, 'store'])->name('store');
-    Route::get('/{event}', [EventController::class, 'show'])->name('show');
-    Route::get('/{event}/edit', [EventController::class, 'edit'])->name('edit');
-    Route::put('/{event}', [EventController::class, 'update'])->name('update');
-    Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
+    |--------------------------------------------------------------------------
+    | Gestion des événements - CORRIGÉ ET ORGANISÉ
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('events')->name('events.')->group(function () {
 
-    // Actions spéciales pour les événements
-    Route::patch('/{event}/participation', [EventController::class, 'updateParticipation'])->name('participation');
-    Route::post('/{event}/complete', [EventController::class, 'markCompleted'])->name('complete');
-    Route::post('/{event}/cancel', [EventController::class, 'cancel'])->name('cancel');
-    Route::post('/{event}/postpone', [EventController::class, 'postpone'])->name('postpone');
+        // ✅ ROUTES SPÉCIALES EN PREMIER
+        Route::get('/calendar/data', [EventController::class, 'calendarData'])->name('calendar.data');
+        Route::get('/export', [EventController::class, 'export'])->name('export');
 
-    // Routes supplémentaires
-    Route::get('/{event}/duplicate', [EventController::class, 'duplicate'])->name('duplicate');
-    Route::get('/export/csv', [EventController::class, 'export'])->name('export');
+        // ✅ ROUTES CRUD PRINCIPALES
+        Route::get('/', [EventController::class, 'index'])->name('index');
+        Route::get('/create', [EventController::class, 'create'])->name('create');
+        Route::post('/', [EventController::class, 'store'])->name('store');
 
-    // API pour le calendrier
-    Route::get('/calendar/data', [EventController::class, 'calendar'])->name('calendar');
-});
+        // ✅ ROUTES AVEC PARAMÈTRES {event}
+        Route::get('/{event}', [EventController::class, 'show'])->name('show');
+        Route::get('/{event}/edit', [EventController::class, 'edit'])->name('edit');
+        Route::put('/{event}', [EventController::class, 'update'])->name('update');
+        Route::delete('/{event}', [EventController::class, 'destroy'])->name('destroy');
+
+        // ✅ ACTIONS SPÉCIALES SUR UN ÉVÉNEMENT SPÉCIFIQUE
+        Route::post('/{event}/confirmer', [EventController::class, 'confirmerParticipation'])->name('confirmer');
+        Route::post('/{event}/decliner', [EventController::class, 'declinerParticipation'])->name('decliner');
+        Route::post('/{event}/presence', [EventController::class, 'marquerPresence'])->name('presence');
+        Route::post('/{event}/duplicate', [EventController::class, 'duplicate'])->name('duplicate');
+        Route::patch('/{event}/status', [EventController::class, 'updateStatus'])->name('update-status');
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Gestion des projets
@@ -218,24 +220,25 @@ Route::prefix('events')->name('events.')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('reports')->name('reports.')->group(function () {
+        // Routes spéciales AVANT les paramètres
+        Route::get('/export/multiple', [ReportController::class, 'exportMultiple'])->name('export.multiple');
+        Route::get('/statistics/overview', [ReportController::class, 'statistics'])->name('statistics')->middleware('admin');
+
+        // Routes CRUD principales
         Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/create', [ReportController::class, 'create'])->name('create');
         Route::post('/', [ReportController::class, 'store'])->name('store');
+
+        // Routes avec paramètres
         Route::get('/{report}', [ReportController::class, 'show'])->name('show');
         Route::get('/{report}/edit', [ReportController::class, 'edit'])->name('edit');
         Route::put('/{report}', [ReportController::class, 'update'])->name('update');
         Route::delete('/{report}', [ReportController::class, 'destroy'])->name('destroy');
+        Route::get('/{report}/pdf', [ReportController::class, 'exportPdf'])->name('pdf');
 
         // Gestion des pièces jointes
         Route::get('/attachments/{pieceJointe}/download', [ReportController::class, 'downloadAttachment'])->name('attachments.download');
         Route::delete('/attachments/{pieceJointe}', [ReportController::class, 'deleteAttachment'])->name('attachments.delete');
-
-        // Export et statistiques
-        Route::get('/{report}/pdf', [ReportController::class, 'exportPdf'])->name('pdf');
-        Route::post('/export/multiple', [ReportController::class, 'exportMultiple'])->name('export.multiple');
-
-        // Statistiques admin uniquement
-        Route::get('/statistics/overview', [ReportController::class, 'statistics'])->name('statistics')->middleware('admin');
     });
 
     /*
@@ -323,10 +326,35 @@ Route::prefix('events')->name('events.')->group(function () {
             return response()->json($results);
         })->name('search');
 
-        // API pour les notifications (futures)
+        // API pour les notifications
         Route::get('/notifications', function () {
-            return response()->json([]);
+            try {
+                $notifications = \App\Models\Notification::where('destinataire_id', Auth::id())
+                                                        ->where('lue', false)
+                                                        ->orderBy('date_creation', 'desc')
+                                                        ->limit(10)
+                                                        ->get();
+                return response()->json($notifications);
+            } catch (\Exception $e) {
+                return response()->json([]);
+            }
         })->name('notifications');
+
+        // Marquer notification comme lue
+        Route::patch('/notifications/{notification}/read', function ($notificationId) {
+            try {
+                $notification = \App\Models\Notification::where('id', $notificationId)
+                                                       ->where('destinataire_id', Auth::id())
+                                                       ->first();
+                if ($notification) {
+                    $notification->update(['lue' => true, 'date_lecture' => now()]);
+                    return response()->json(['success' => true]);
+                }
+                return response()->json(['success' => false], 404);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false], 500);
+            }
+        })->name('notifications.read');
     });
 });
 
@@ -335,6 +363,17 @@ Route::prefix('events')->name('events.')->group(function () {
 | Routes publiques (sans authentification)
 |--------------------------------------------------------------------------
 */
+
+// Routes publiques pour les événements (si activées)
+Route::prefix('public')->name('public.')->group(function () {
+    // Calendrier public (si activé)
+    Route::get('/calendar', [EventController::class, 'publicCalendar'])
+         ->name('calendar');
+
+    // Événements publics
+    Route::get('/events', [EventController::class, 'publicEvents'])
+         ->name('events');
+});
 
 // Page d'information sur l'application
 Route::get('/about', function () {
