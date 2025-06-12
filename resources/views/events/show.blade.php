@@ -1,645 +1,794 @@
 @extends('layouts.app')
 
-@section('title', $event->titre)
+@section('title', 'Détails de l\'événement')
 
 @push('styles')
 <style>
     .event-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
         color: white;
-        border-radius: 10px;
         padding: 2rem;
         margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
     }
 
-    .status-badge {
-        font-size: 0.9rem;
+    .event-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .event-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .event-type-badge {
+        display: inline-block;
         padding: 0.5rem 1rem;
         border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    .type-intervention {
+        background: rgba(220, 38, 38, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(220, 38, 38, 0.3);
+    }
+
+    .type-reunion {
+        background: rgba(37, 99, 235, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(37, 99, 235, 0.3);
+    }
+
+    .type-formation {
+        background: rgba(22, 163, 74, 0.2);
+        color: #86efac;
+        border: 1px solid rgba(22, 163, 74, 0.3);
+    }
+
+    .type-visite {
+        background: rgba(234, 88, 12, 0.2);
+        color: #fdba74;
+        border: 1px solid rgba(234, 88, 12, 0.3);
     }
 
     .priority-indicator {
-        width: 4px;
-        height: 100%;
-        position: absolute;
-        left: 0;
-        top: 0;
-        border-radius: 4px 0 0 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-left: 1rem;
     }
 
-    .priority-haute { background-color: #ffc107; }
-    .priority-urgente { background-color: #dc3545; }
-    .priority-normale { background-color: #6c757d; }
-
-    .participant-card {
-        transition: transform 0.2s ease;
-        position: relative;
-        border-left: 4px solid #dee2e6;
+    .priority-normale {
+        background: rgba(107, 114, 128, 0.2);
+        color: #d1d5db;
+        border: 1px solid rgba(107, 114, 128, 0.3);
     }
 
-    .participant-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    .priority-haute {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
-    .participant-card.organizer {
-        border-left-color: #007bff;
-        background-color: #f8f9fa;
+    .priority-urgente {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
-    .participant-card.confirmed {
-        border-left-color: #28a745;
+    .priority-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
     }
 
-    .participant-card.declined {
-        border-left-color: #dc3545;
+    .priority-dot.normale { background: #d1d5db; }
+    .priority-dot.haute { background: #fbbf24; }
+    .priority-dot.urgente { background: #f87171; }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-left: 1rem;
     }
 
-    .participant-card.pending {
-        border-left-color: #ffc107;
+    .status-planifie {
+        background: rgba(75, 85, 99, 0.2);
+        color: #d1d5db;
+        border: 1px solid rgba(75, 85, 99, 0.3);
+    }
+
+    .status-en_cours {
+        background: rgba(37, 99, 235, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(37, 99, 235, 0.3);
+    }
+
+    .status-termine {
+        background: rgba(22, 163, 74, 0.2);
+        color: #86efac;
+        border: 1px solid rgba(22, 163, 74, 0.3);
+    }
+
+    .status-annule {
+        background: rgba(220, 38, 38, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(220, 38, 38, 0.3);
+    }
+
+    .status-reporte {
+        background: rgba(217, 119, 6, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(217, 119, 6, 0.3);
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .info-card h5 {
+        color: #374151;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-card h5 i {
+        color: #667eea;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .info-item {
         display: flex;
         align-items: center;
-        margin-bottom: 1rem;
-        padding: 0.75rem;
-        background-color: #f8f9fa;
-        border-radius: 0.375rem;
-        border-left: 4px solid #007bff;
-    }
-
-    .info-item i {
-        font-size: 1.2rem;
-        margin-right: 0.75rem;
-        color: #007bff;
-        width: 24px;
-    }
-
-    .task-item {
-        border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
+        gap: 0.75rem;
         padding: 1rem;
-        margin-bottom: 0.5rem;
+        background: #f9fafb;
+        border-radius: 10px;
+        border: 1px solid #f3f4f6;
+    }
+
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .info-content {
+        flex-grow: 1;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 2px;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .participant-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+
+    .participant-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 10px;
+        border: 1px solid #f3f4f6;
         transition: all 0.3s ease;
     }
 
-    .task-item:hover {
-        background-color: #f8f9fa;
-        border-color: #007bff;
+    .participant-item:hover {
+        background: #f3f4f6;
+        transform: translateY(-2px);
     }
 
-    .task-completed {
-        background-color: #d4edda;
-        border-color: #28a745;
-    }
-
-    .task-in-progress {
-        background-color: #fff3cd;
-        border-color: #ffc107;
-    }
-
-    .timeline-item {
-        position: relative;
-        padding-left: 2rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .timeline-item::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0.5rem;
-        width: 12px;
-        height: 12px;
-        background-color: #007bff;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 0 0 2px #007bff;
-    }
-
-    .timeline-item::after {
-        content: '';
-        position: absolute;
-        left: 5px;
-        top: 1.2rem;
-        width: 2px;
-        height: calc(100% - 0.7rem);
-        background-color: #dee2e6;
-    }
-
-    .timeline-item:last-child::after {
-        display: none;
-    }
-
-    .event-type-icon {
-        width: 60px;
-        height: 60px;
+    .participant-avatar {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
-        margin-right: 1rem;
+        font-weight: 700;
+        flex-shrink: 0;
     }
 
-    .type-intervention { background-color: rgba(220, 53, 69, 0.1); color: #dc3545; }
-    .type-reunion { background-color: rgba(0, 123, 255, 0.1); color: #007bff; }
-    .type-formation { background-color: rgba(40, 167, 69, 0.1); color: #28a745; }
-    .type-visite { background-color: rgba(253, 126, 20, 0.1); color: #fd7e14; }
+    .participant-info {
+        flex-grow: 1;
+    }
 
-    .metric-card {
-        text-align: center;
-        padding: 1.5rem;
+    .participant-name {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .participant-email {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .participant-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-confirme {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-invite {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-decline {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-present {
+        background: #dbeafe;
+        color: #2563eb;
+    }
+
+    .status-absent {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
         border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover {
+        color: white;
+        box-shadow: 0 8px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(22, 163, 74, 0.3);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-outline-secondary {
         background: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border: 1px solid #dee2e6;
+        color: #6b7280;
+        border: 2px solid #e5e7eb;
     }
 
-    .metric-number {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #007bff;
+    .btn-outline-secondary:hover {
+        background: #f9fafb;
+        color: #374151;
+        border-color: #d1d5db;
     }
 
-    .participation-chart {
-        width: 100px;
-        height: 100px;
-        margin: 0 auto;
+    .description-content {
+        line-height: 1.6;
+        color: #4b5563;
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+    }
+
+    .map-container {
+        height: 300px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6b7280;
+    }
+
+    @media (max-width: 768px) {
+        .event-header {
+            padding: 1.5rem;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .participant-list {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn-action {
+            justify-content: center;
+        }
     }
 </style>
 @endpush
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid px-4">
+    <!-- Navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('events.index') }}">Événements</a></li>
+            <li class="breadcrumb-item active">{{ $event->titre }}</li>
+        </ol>
+    </nav>
+
     <!-- En-tête de l'événement -->
     <div class="event-header">
-        <div class="d-flex justify-content-between align-items-start">
-            <div class="d-flex align-items-center">
-                <div class="event-type-icon type-{{ $event->type }}">
-                    <i class="bi bi-{{ $event->type === 'intervention' ? 'tools' : ($event->type === 'reunion' ? 'people' : ($event->type === 'formation' ? 'book' : 'geo-alt')) }}"></i>
-                </div>
+        <div class="event-content">
+            <div class="d-flex justify-content-between align-items-start mb-3">
                 <div>
-                    <h1 class="mb-2">{{ $event->titre }}</h1>
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="badge status-badge
-                            @if($event->statut === 'termine') bg-success
-                            @elseif($event->statut === 'en_cours') bg-primary
-                            @elseif($event->statut === 'annule') bg-danger
-                            @elseif($event->statut === 'reporte') bg-warning
-                            @else bg-secondary @endif">
-                            {{ $event->statut_nom }}
-                        </span>
-                        <span class="badge bg-white text-dark">{{ $event->type_nom }}</span>
-                        <span class="badge
-                            @if($event->priorite === 'urgente') bg-danger
-                            @elseif($event->priorite === 'haute') bg-warning
-                            @else bg-info @endif">
-                            {{ $event->priorite_nom }}
-                        </span>
+                    <div class="event-type-badge type-{{ $event->type }}">
+                        {{ $event->type_nom }}
+                    </div>
+                    <div class="priority-indicator priority-{{ $event->priorite }}">
+                        <div class="priority-dot {{ $event->priorite }}"></div>
+                        {{ $event->priorite_nom }}
+                    </div>
+                    <div class="status-badge status-{{ $event->statut }}">
+                        {{ $event->statut_nom }}
                     </div>
                 </div>
-            </div>
-            <div class="text-end">
-                <div class="btn-group">
+                <div class="action-buttons">
                     @if(Auth::user()->role === 'admin' || $event->id_organisateur === Auth::id())
-                        <a href="{{ route('events.edit', $event) }}" class="btn btn-light">
-                            <i class="bi bi-pencil me-1"></i>
+                        <a href="{{ route('events.edit', $event) }}" class="btn-action btn-primary">
+                            <i class="bi bi-pencil"></i>
                             Modifier
                         </a>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown">
-                                Actions
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ route('events.duplicate', $event) }}">
-                                    <i class="bi bi-files me-2"></i>Dupliquer
-                                </a></li>
-                                @if($event->statut !== 'termine' && $event->statut !== 'annule')
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="#" onclick="markCompleted()">
-                                        <i class="bi bi-check-circle me-2"></i>Marquer terminé
-                                    </a></li>
-                                    <li><a class="dropdown-item text-warning" href="#" onclick="postponeEvent()">
-                                        <i class="bi bi-calendar-x me-2"></i>Reporter
-                                    </a></li>
-                                    <li><a class="dropdown-item text-danger" href="#" onclick="cancelEvent()">
-                                        <i class="bi bi-x-circle me-2"></i>Annuler
-                                    </a></li>
-                                @endif
-                            </ul>
-                        </div>
                     @endif
-                    <a href="{{ route('events.index') }}" class="btn btn-outline-light">
-                        <i class="bi bi-arrow-left me-1"></i>
+                    <a href="{{ route('events.index') }}" class="btn-action btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i>
                         Retour
                     </a>
+                </div>
+            </div>
+
+            <h1 class="display-6 fw-bold mb-3">{{ $event->titre }}</h1>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center text-white-50 mb-2">
+                        <i class="bi bi-person me-2"></i>
+                        Organisé par {{ $event->organisateur->prenom }} {{ $event->organisateur->nom }}
+                    </div>
+                    @if($event->projet)
+                        <div class="d-flex align-items-center text-white-50">
+                            <i class="bi bi-folder me-2"></i>
+                            Projet : {{ $event->projet->nom }}
+                        </div>
+                    @endif
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="text-white-50">
+                        <i class="bi bi-people me-1"></i>
+                        {{ $event->participants->count() }} participant(s)
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Contenu principal -->
+        <!-- Informations principales -->
         <div class="col-lg-8">
             <!-- Description -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-file-text text-primary me-2"></i>
-                        Description
-                    </h5>
+            <div class="info-card">
+                <h5>
+                    <i class="bi bi-file-text"></i>
+                    Description
+                </h5>
+                <div class="description-content">
+                    {{ $event->description }}
                 </div>
-                <div class="card-body">
-                    <p class="mb-0">{{ $event->description }}</p>
+            </div>
+
+            <!-- Détails de l'événement -->
+            <div class="info-card">
+                <h5>
+                    <i class="bi bi-info-circle"></i>
+                    Détails de l'événement
+                </h5>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-calendar-date"></i>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-label">Date de début</div>
+                            <div class="info-value">{{ $event->date_debut->format('d/m/Y à H:i') }}</div>
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-label">Date de fin</div>
+                            <div class="info-value">{{ $event->date_fin->format('d/m/Y à H:i') }}</div>
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-label">Durée</div>
+                            <div class="info-value">
+                                @if($event->duree >= 60)
+                                    {{ intval($event->duree / 60) }}h {{ $event->duree % 60 }}min
+                                @else
+                                    {{ $event->duree }} minutes
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-label">Lieu</div>
+                            <div class="info-value">{{ $event->lieu }}</div>
+                        </div>
+                    </div>
+
+                    @if($event->coordonnees_gps)
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-geo"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Coordonnées GPS</div>
+                                <div class="info-value">{{ $event->coordonnees_gps }}</div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-calendar-plus"></i>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-label">Créé le</div>
+                            <div class="info-value">{{ $event->created_at->format('d/m/Y à H:i') }}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Participants -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-people text-primary me-2"></i>
-                        Participants ({{ $event->participants->count() }})
-                    </h5>
-                    <div>
-                        <span class="badge bg-success">{{ $event->participants->where('statut_presence', 'confirme')->count() }} Confirmés</span>
-                        <span class="badge bg-warning">{{ $event->participants->where('statut_presence', 'invite')->count() }} En attente</span>
-                        <span class="badge bg-danger">{{ $event->participants->where('statut_presence', 'decline')->count() }} Déclinés</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        @foreach($event->participants as $participation)
-                            <div class="col-md-6 mb-3">
-                                <div class="participant-card card h-100
-                                    @if($participation->id_utilisateur === $event->id_organisateur) organizer
-                                    @elseif($participation->statut_presence === 'confirme') confirmed
-                                    @elseif($participation->statut_presence === 'decline') declined
-                                    @else pending @endif">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <h6 class="card-title mb-1">
-                                                    {{ $participation->utilisateur->prenom }} {{ $participation->utilisateur->nom }}
-                                                    @if($participation->id_utilisateur === $event->id_organisateur)
-                                                        <span class="badge bg-primary ms-2">Organisateur</span>
-                                                    @endif
-                                                </h6>
-                                                <p class="card-text text-muted small mb-2">
-                                                    {{ $participation->utilisateur->email }}
-                                                </p>
-                                                <span class="badge {{ $participation->classe_statut }}">
-                                                    <i class="bi {{ $participation->icone_statut }} me-1"></i>
-                                                    {{ $participation->statut_presence_nom }}
-                                                </span>
-                                            </div>
-                                            @if($participation->id_utilisateur === Auth::id() && $participation->id_utilisateur !== $event->id_organisateur)
-                                                <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-outline-success"
-                                                            onclick="updateParticipation('confirme')" title="Confirmer">
-                                                        <i class="bi bi-check"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-danger"
-                                                            onclick="updateParticipation('decline')" title="Décliner">
-                                                        <i class="bi bi-x"></i>
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </div>
+            <div class="info-card">
+                <h5>
+                    <i class="bi bi-people"></i>
+                    Participants ({{ $event->participants->count() }})
+                </h5>
+
+                @if($event->participants->count() > 0)
+                    <div class="participant-list">
+                        @foreach($event->participants as $participant)
+                            <div class="participant-item">
+                                <div class="participant-avatar">
+                                    {{ substr($participant->utilisateur->prenom, 0, 1) }}{{ substr($participant->utilisateur->nom, 0, 1) }}
+                                </div>
+                                <div class="participant-info">
+                                    <div class="participant-name">
+                                        {{ $participant->utilisateur->prenom }} {{ $participant->utilisateur->nom }}
+                                        @if($participant->id_utilisateur === $event->id_organisateur)
+                                            <span class="badge bg-primary ms-2">Organisateur</span>
+                                        @endif
                                     </div>
+                                    <div class="participant-email">{{ $participant->utilisateur->email }}</div>
+                                </div>
+                                <div class="participant-status status-{{ $participant->statut_presence }}">
+                                    {{ ucfirst(str_replace('_', ' ', $participant->statut_presence)) }}
                                 </div>
                             </div>
                         @endforeach
                     </div>
-                </div>
-            </div>
-
-            <!-- Tâches associées -->
-            @if($event->taches->count() > 0)
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-list-check text-primary me-2"></i>
-                        Tâches Associées ({{ $event->taches->count() }})
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @foreach($event->taches as $tache)
-                        <div class="task-item
-                            @if($tache->statut === 'termine') task-completed
-                            @elseif($tache->statut === 'en_cours') task-in-progress @endif">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">{{ $tache->titre }}</h6>
-                                    <p class="text-muted mb-2 small">{{ Str::limit($tache->description, 100) }}</p>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge
-                                            @if($tache->statut === 'termine') bg-success
-                                            @elseif($tache->statut === 'en_cours') bg-warning
-                                            @else bg-secondary @endif">
-                                            {{ ucfirst(str_replace('_', ' ', $tache->statut)) }}
-                                        </span>
-                                        <small class="text-muted">
-                                            Échéance: {{ $tache->date_echeance ? $tache->date_echeance->format('d/m/Y') : 'Non définie' }}
-                                        </small>
-                                    </div>
-                                </div>
-                                <a href="#" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            @endif
-
-            <!-- Historique (simulation) -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-clock-history text-primary me-2"></i>
-                        Historique des Modifications
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="timeline-item">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="mb-1">Événement créé</h6>
-                                <p class="text-muted mb-0">Par {{ $event->organisateur->prenom }} {{ $event->organisateur->nom }}</p>
-                            </div>
-                            <small class="text-muted">{{ $event->created_at->format('d/m/Y à H:i') }}</small>
-                        </div>
+                @else
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-people display-4 mb-3"></i>
+                        <p>Aucun participant pour cet événement</p>
                     </div>
-
-                    @if($event->created_at != $event->updated_at)
-                    <div class="timeline-item">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="mb-1">Dernière modification</h6>
-                                <p class="text-muted mb-0">Informations mises à jour</p>
-                            </div>
-                            <small class="text-muted">{{ $event->updated_at->format('d/m/Y à H:i') }}</small>
-                        </div>
-                    </div>
-                    @endif
-                </div>
+                @endif
             </div>
         </div>
 
-        <!-- Sidebar avec informations -->
+        <!-- Sidebar -->
         <div class="col-lg-4">
-            <!-- Informations générales -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-info-circle text-primary me-2"></i>
-                        Détails de l'Événement
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="info-item">
-                        <i class="bi bi-calendar-date"></i>
-                        <div>
-                            <strong>Date de début</strong><br>
-                            <span class="text-muted">{{ $event->date_debut->format('d/m/Y à H:i') }}</span>
-                        </div>
-                    </div>
+            <!-- Actions rapides -->
+            @if(Auth::user()->role === 'admin' || $event->id_organisateur === Auth::id())
+                <div class="info-card">
+                    <h5>
+                        <i class="bi bi-lightning"></i>
+                        Actions rapides
+                    </h5>
 
-                    <div class="info-item">
-                        <i class="bi bi-calendar-check"></i>
-                        <div>
-                            <strong>Date de fin</strong><br>
-                            <span class="text-muted">{{ $event->date_fin->format('d/m/Y à H:i') }}</span>
-                        </div>
-                    </div>
-
-                    <div class="info-item">
-                        <i class="bi bi-clock"></i>
-                        <div>
-                            <strong>Durée</strong><br>
-                            <span class="text-muted">{{ $event->duree }} minutes</span>
-                        </div>
-                    </div>
-
-                    <div class="info-item">
-                        <i class="bi bi-geo-alt"></i>
-                        <div>
-                            <strong>Lieu</strong><br>
-                            <span class="text-muted">{{ $event->lieu }}</span>
-                            @if($event->coordonnees_gps)
-                                <br><small class="text-info">GPS: {{ $event->coordonnees_gps }}</small>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="info-item">
-                        <i class="bi bi-person-badge"></i>
-                        <div>
-                            <strong>Organisateur</strong><br>
-                            <span class="text-muted">{{ $event->organisateur->prenom }} {{ $event->organisateur->nom }}</span>
-                        </div>
-                    </div>
-
-                    @if($event->projet)
-                    <div class="info-item">
-                        <i class="bi bi-folder"></i>
-                        <div>
-                            <strong>Projet associé</strong><br>
-                            <span class="text-muted">{{ $event->projet->nom }}</span>
-                        </div>
-                    </div>
-                    @endif
-                </div>
-            </div>
-
-            <!-- Métriques de participation -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-pie-chart text-primary me-2"></i>
-                        Statistiques de Participation
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <div class="metric-card">
-                                <div class="metric-number text-success">{{ $event->participants->where('statut_presence', 'confirme')->count() }}</div>
-                                <small class="text-muted">Confirmés</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="metric-card">
-                                <div class="metric-number text-warning">{{ $event->participants->where('statut_presence', 'invite')->count() }}</div>
-                                <small class="text-muted">En attente</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="metric-card">
-                                <div class="metric-number text-danger">{{ $event->participants->where('statut_presence', 'decline')->count() }}</div>
-                                <small class="text-muted">Déclinés</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions contextuelles -->
-            @if($event->statut !== 'termine' && $event->statut !== 'annule')
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-lightning text-primary me-2"></i>
-                        Actions Rapides
-                    </h6>
-                </div>
-                <div class="card-body">
                     <div class="d-grid gap-2">
-                        @if(Auth::user()->role === 'admin' || $event->id_organisateur === Auth::id())
-                            <button type="button" class="btn btn-success" onclick="markCompleted()">
-                                <i class="bi bi-check-circle me-2"></i>
+                        @if($event->statut === 'planifie')
+                            <button class="btn-action btn-success" onclick="updateStatus('en_cours')">
+                                <i class="bi bi-play"></i>
+                                Commencer l'événement
+                            </button>
+                        @endif
+
+                        @if(in_array($event->statut, ['planifie', 'en_cours']))
+                            <button class="btn-action btn-success" onclick="updateStatus('termine')">
+                                <i class="bi bi-check-lg"></i>
                                 Marquer comme terminé
                             </button>
-                            <button type="button" class="btn btn-warning" onclick="postponeEvent()">
-                                <i class="bi bi-calendar-x me-2"></i>
+
+                            <button class="btn-action btn-warning" onclick="showPostponeModal()">
+                                <i class="bi bi-calendar-week"></i>
                                 Reporter l'événement
+                            </button>
+
+                            <button class="btn-action btn-danger" onclick="updateStatus('annule')">
+                                <i class="bi bi-x-lg"></i>
+                                Annuler l'événement
                             </button>
                         @endif
 
-                        @if($event->utilisateurParticipe(Auth::id()) && Auth::id() !== $event->id_organisateur)
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-outline-success" onclick="updateParticipation('confirme')">
-                                    <i class="bi bi-check me-1"></i>
-                                    Confirmer
-                                </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="updateParticipation('decline')">
-                                    <i class="bi bi-x me-1"></i>
-                                    Décliner
-                                </button>
-                            </div>
-                        @endif
+                        <a href="{{ route('events.edit', $event) }}" class="btn-action btn-primary">
+                            <i class="bi bi-pencil"></i>
+                            Modifier l'événement
+                        </a>
+
+                        <button class="btn-action btn-danger" onclick="confirmDelete()">
+                            <i class="bi bi-trash"></i>
+                            Supprimer l'événement
+                        </button>
                     </div>
                 </div>
-            </div>
             @endif
+
+            <!-- Carte/Localisation -->
+            @if($event->coordonnees_gps)
+                <div class="info-card">
+                    <h5>
+                        <i class="bi bi-map"></i>
+                        Localisation
+                    </h5>
+
+                    <div class="map-container">
+                        <div class="text-center">
+                            <i class="bi bi-geo-alt display-4 mb-2"></i>
+                            <p class="mb-1">{{ $event->lieu }}</p>
+                            <small>{{ $event->coordonnees_gps }}</small>
+                            <br>
+                            <a href="https://www.google.com/maps?q={{ $event->coordonnees_gps }}"
+                               target="_blank" class="btn btn-sm btn-primary mt-2">
+                                <i class="bi bi-map me-1"></i>
+                                Voir sur Google Maps
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Informations supplémentaires -->
+            <div class="info-card">
+                <h5>
+                    <i class="bi bi-graph-up"></i>
+                    Statistiques
+                </h5>
+
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="p-3">
+                            <div class="h4 mb-1 text-primary">{{ $event->participants->where('statut_presence', 'confirme')->count() }}</div>
+                            <small class="text-muted">Confirmés</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3">
+                            <div class="h4 mb-1 text-warning">{{ $event->participants->where('statut_presence', 'invite')->count() }}</div>
+                            <small class="text-muted">En attente</small>
+                        </div>
+                    </div>
+                </div>
+
+                @if($event->date_debut < now())
+                    <div class="alert alert-info">
+                        <i class="bi bi-clock me-2"></i>
+                        <strong>Événement passé</strong><br>
+                        Il y a {{ $event->date_debut->diffForHumans() }}
+                    </div>
+                @elseif($event->date_debut->isToday())
+                    <div class="alert alert-warning">
+                        <i class="bi bi-calendar-day me-2"></i>
+                        <strong>Événement aujourd'hui</strong><br>
+                        À {{ $event->date_debut->format('H:i') }}
+                    </div>
+                @else
+                    <div class="alert alert-success">
+                        <i class="bi bi-calendar-plus me-2"></i>
+                        <strong>Événement à venir</strong><br>
+                        {{ $event->date_debut->diffForHumans() }}
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de report -->
-<div class="modal fade" id="postponeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Reporter l'Événement</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ route('events.postpone', $event) }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label for="new_date_debut" class="form-label">Nouvelle date de début</label>
-                            <input type="datetime-local" class="form-control" id="new_date_debut" name="date_debut" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="new_date_fin" class="form-label">Nouvelle date de fin</label>
-                            <input type="datetime-local" class="form-control" id="new_date_fin" name="date_fin" required>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-warning">Reporter</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Formulaires cachés -->
+<form id="statusForm" method="POST" style="display: none;">
+    @csrf
+    @method('PATCH')
+    <input type="hidden" name="statut" id="statusInput">
+</form>
+
+<form id="deleteForm" method="POST" action="{{ route('events.destroy', $event) }}" style="display: none;">
+    @csrf
+    @method('DELETE')
+</form>
 @endsection
 
 @push('scripts')
 <script>
-// Marquer comme terminé
-function markCompleted() {
-    if (confirm('Êtes-vous sûr de vouloir marquer cet événement comme terminé ?')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("events.markCompleted", $event) }}';
-        form.innerHTML = '@csrf';
-        document.body.appendChild(form);
-        form.submit();
+// Mettre à jour le statut de l'événement
+function updateStatus(newStatus) {
+    const messages = {
+        'en_cours': 'Voulez-vous commencer cet événement ?',
+        'termine': 'Voulez-vous marquer cet événement comme terminé ?',
+        'annule': 'Voulez-vous annuler cet événement ?'
+    };
+
+    if (confirm(messages[newStatus])) {
+        document.getElementById('statusInput').value = newStatus;
+        document.getElementById('statusForm').action = '/events/{{ $event->id }}/status';
+        document.getElementById('statusForm').submit();
     }
 }
 
-// Reporter l'événement
-function postponeEvent() {
-    const modal = new bootstrap.Modal(document.getElementById('postponeModal'));
-    modal.show();
-}
-
-// Annuler l'événement
-function cancelEvent() {
-    if (confirm('Êtes-vous sûr de vouloir annuler cet événement ?')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("events.cancel", $event) }}';
-        form.innerHTML = '@csrf';
-        document.body.appendChild(form);
-        form.submit();
+// Confirmer la suppression
+function confirmDelete() {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible.')) {
+        document.getElementById('deleteForm').submit();
     }
 }
 
-// Mettre à jour la participation
-function updateParticipation(statut) {
-    fetch('{{ route("events.updateParticipation", $event) }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            statut_presence: statut
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload(); // Recharger la page pour voir les changements
-        } else {
-            alert('Erreur lors de la mise à jour de la participation');
+// Afficher le modal de report (simulation)
+function showPostponeModal() {
+    const newDate = prompt('Nouvelle date de début (YYYY-MM-DD HH:MM):');
+    if (newDate) {
+        const newEndDate = prompt('Nouvelle date de fin (YYYY-MM-DD HH:MM):');
+        if (newEndDate) {
+            // Créer un formulaire dynamique pour le report
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/events/{{ $event->id }}/postpone';
+
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = '{{ csrf_token() }}';
+
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'PATCH';
+
+            const dateDebut = document.createElement('input');
+            dateDebut.type = 'hidden';
+            dateDebut.name = 'date_debut';
+            dateDebut.value = newDate;
+
+            const dateFin = document.createElement('input');
+            dateFin.type = 'hidden';
+            dateFin.name = 'date_fin';
+            dateFin.value = newEndDate;
+
+            form.appendChild(csrf);
+            form.appendChild(method);
+            form.appendChild(dateDebut);
+            form.appendChild(dateFin);
+
+            document.body.appendChild(form);
+            form.submit();
         }
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        alert('Erreur lors de la mise à jour de la participation');
-    });
+    }
 }
-
-// Validation des dates dans le modal de report
-document.getElementById('new_date_debut').addEventListener('change', function() {
-    const dateDebut = new Date(this.value);
-    const dateFin = document.getElementById('new_date_fin');
-
-    // Mettre à jour la date de fin minimale
-    dateFin.min = this.value;
-
-    // Si la date de fin est antérieure, l'ajuster
-    if (dateFin.value && new Date(dateFin.value) <= dateDebut) {
-        const newEndDate = new Date(dateDebut.getTime() + 60 * 60 * 1000); // +1 heure
-        dateFin.value = newEndDate.toISOString().slice(0, 16);
-    }
-});
 </script>
-@endpush solid white;
-        box-shadow: 0 0 0 2px #007bff;
-    }
-
-    .timeline-item::after {
-        content: '';
-        position: absolute
+@endpush

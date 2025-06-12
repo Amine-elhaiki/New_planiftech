@@ -76,16 +76,6 @@ class Event extends Model
                     ->withTimestamps();
     }
 
-    public function taches()
-    {
-        return $this->hasMany(Task::class, 'id_evenement');
-    }
-
-    public function rapports()
-    {
-        return $this->hasMany(Report::class, 'id_evenement');
-    }
-
     // Accesseurs
     public function getTypeNomAttribute()
     {
@@ -104,7 +94,10 @@ class Event extends Model
 
     public function getDureeAttribute()
     {
-        return $this->date_debut->diffInMinutes($this->date_fin);
+        if ($this->date_debut && $this->date_fin) {
+            return $this->date_debut->diffInMinutes($this->date_fin);
+        }
+        return 0;
     }
 
     public function getNombreParticipantsConfirmesAttribute()
