@@ -4,6 +4,17 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use App\Models\Task;
+use App\Models\Project;
+use App\Models\Event;
+use App\Models\Report;
+use App\Models\ParticipantEvent;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpFoundation\Response;
+use App\Http\Requests\DashboardRequest;
 
 class DashboardController extends Controller
 {
@@ -28,75 +39,207 @@ class DashboardController extends Controller
     /**
      * Dashboard pour les administrateurs
      */
-    public function adminDashboard()
+    private function adminDashboard()
     {
-        $user = Auth::user();
-
-        // Statistiques pour admin
+        // Statistiques générales
         $stats = [
-            'total_users' => \App\Models\User::count(),
-            'total_technicians' => \App\Models\User::where('role', 'technicien')->count(),
-            'active_users' => \App\Models\User::where('statut', 'actif')->count(),
-            'total_tasks' => 0, // À remplacer par le vrai modèle
-            'completed_tasks' => 0,
-            'pending_tasks' => 0,
-            'urgent_tasks' => 0,
-            'total_reports' => 0,
-            'monthly_reports' => 0,
-            'total_projects' => 0,
-            'active_projects' => 0,
+            'users' => [
+                'total' => User::count(),
+                'active' => User::where('statut', 'actif')->count(),
+                'inactive' => User::where('statut', 'inactif')->count(),
+                'admins' => User::where('role', 'admin')->count(),
+            ],
+            'tasks' => [
+                'total' => Task::count(),
+                'pending' => Task::where('statut', 'a_faire')->count(),
+                'in_progress' => Task::where('statut', 'en_cours')->count(),
+                'completed' => Task::where('statut', 'termine')->count(),
+                'overdue' => Task::where('date_echeance', '<', now())
+                               ->whereIn('statut', ['a_faire', 'en_cours'])
+                               ->count(),
+            ],
+            'projects' => [
+                'total' => Project::count(),
+                'active' => Project::whereIn('statut', ['planifie', 'en_cours'])->count(),
+                'completed' => Project::where('statut', 'termine')->count(),
+            ],
+            'events' => [
+                'total' => Event::count(),
+                'upcoming' => Event::where('date_debut', '>', now())->count(),
+                'today' => Event::whereDate('date_debut', today())->count(),
+            ]
         ];
 
-        // Activités récentes pour admin
-        $recentActivities = [
-            [
-                'user' => $user,
-                'action' => 'Connexion au système',
-                'status' => 'actif',
-                'date' => now(),
-                'type' => 'login'
-            ],
-            [
-                'user' => (object) ['prenom' => 'Système', 'nom' => 'ORMVAT', 'role' => 'system'],
-                'action' => 'Sauvegarde automatique',
-                'status' => 'terminé',
-                'date' => now()->subHours(2),
-                'type' => 'backup'
-            ],
-            [
-                'user' => (object) ['prenom' => 'Ahmed', 'nom' => 'Bennani', 'role' => 'technicien'],
-                'action' => 'Rapport d\'intervention soumis',
-                'status' => 'en révision',
-                'date' => now()->subHours(4),
-                'type' => 'report'
-            ],
-        ];
+        // Utilisateurs récents
+        $recentUsers = User::latest()->limit(10)->get();
 
-        return view('dashboard.index', compact('stats', 'recentActivities'));
+        return view('dashboard.index', compact('stats', 'recentUsers'));
     }
-
     /**
      * Dashboard pour les techniciens
      */
-    public function technicianDashboard()
+    private function technicianDashboard()
     {
         $user = Auth::user();
 
-        // Statistiques pour technicien
+        // ✅ STATISTIQUES POUR TECHNICIEN
         $stats = [
-            'completed_tasks' => $this->getUserTaskCount($user, 'termine'),
-            'in_progress_tasks' => $this->getUserTaskCount($user, 'en_cours'),
-            'urgent_tasks' => $this->getUserUrgentTasks($user),
-            'monthly_reports' => $this->getUserMonthlyReports($user),
+            'tasks' => [
+                'total' => Task::where('id_utilisateur', $user->id)->count(),
+                'pending' => Task::where('id_utilisateur', $user->id)->where('statut', 'a_faire')->count(),
+                'in_progress' => Task::where('id_utilisateur', $user->id)->where('statut', 'en_cours')->count(),
+                'completed' => Task::where('id_utilisateur', $user->id)->where('statut', 'termine')->count(),
+                'overdue' => Task::where('id_utilisateur', $user->id)
+                               ->where('date_echeance', '<', now())
+                               ->whereIn('statut', ['a_faire', 'en_cours'])
+                               ->count(),
+            ],
+            'events' => [
+                'total' => $this->getUserEventsCount($user->id),
+                'organized' => Event::where('id_organisateur', $user->id)->count(),
+                'invited' => $this->getUserInvitationsCount($user->id, 'invite'),
+                'confirmed' => $this->getUserInvitationsCount($user->id, 'confirme'),
+                'upcoming' => $this->getUserUpcomingEventsCount($user->id),
+                'today' => $this->getUserTodayEventsCount($user->id),
+            ],
+            'reports' => [
+                'total' => Report::where('id_utilisateur', $user->id)->count(),
+                'this_month' => Report::where('id_utilisateur', $user->id)
+                                    ->whereMonth('created_at', now()->month)
+                                    ->count(),
+                'this_week' => Report::where('id_utilisateur', $user->id)
+                                   ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+                                   ->count(),
+            ]
         ];
 
-        // Tâches prioritaires pour le technicien
-        $priorityTasks = $this->getPriorityTasks($user);
+        // ✅ TÂCHES RÉCENTES DU TECHNICIEN
+        $recentTasks = Task::where('id_utilisateur', $user->id)
+                          ->orderBy('date_echeance', 'asc')
+                          ->limit(5)
+                          ->get();
 
-        // Derniers rapports du technicien
-        $recentReports = $this->getRecentReports($user);
+        // ✅ ÉVÉNEMENTS EN ATTENTE DE RÉPONSE
+        $pendingInvitations = $this->getUserPendingInvitations($user->id);
 
-        return view('dashboard.technician', compact('stats', 'priorityTasks', 'recentReports'));
+        // ✅ ÉVÉNEMENTS À VENIR
+        $upcomingEvents = $this->getUserUpcomingEvents($user->id);
+
+        // ✅ ÉVÉNEMENTS CONFIRMÉS AUJOURD'HUI
+        $todayEvents = $this->getUserTodayEvents($user->id);
+
+        // ✅ RAPPORTS RÉCENTS
+        $recentReports = Report::where('id_utilisateur', $user->id)
+                              ->latest()
+                              ->limit(3)
+                              ->get();
+
+        return view('dashboard.technician', compact(
+            'stats', 
+            'recentTasks', 
+            'pendingInvitations',
+            'upcomingEvents',
+            'todayEvents',
+            'recentReports'
+        ));
+    }
+
+
+    
+    // ✅ MÉTHODES UTILITAIRES POUR LES ÉVÉNEMENTS
+
+    /**
+     * Obtenir le nombre total d'événements de l'utilisateur
+     */
+    private function getUserEventsCount($userId)
+    {
+        return Event::where(function($query) use ($userId) {
+            $query->where('id_organisateur', $userId)
+                  ->orWhereHas('participants', function($q) use ($userId) {
+                      $q->where('id_utilisateur', $userId);
+                  });
+        })->count();
+    }
+
+        /**
+     * Obtenir le nombre d'invitations par statut
+     */
+    private function getUserInvitationsCount($userId, $status)
+    {
+        return ParticipantEvent::where('id_utilisateur', $userId)
+                              ->where('statut_presence', $status)
+                              ->count();
+    }
+
+     /**
+     * Obtenir le nombre d'événements à venir
+     */
+    private function getUserUpcomingEventsCount($userId)
+    {
+        return Event::where(function($query) use ($userId) {
+            $query->where('id_organisateur', $userId)
+                  ->orWhereHas('participants', function($q) use ($userId) {
+                      $q->where('id_utilisateur', $userId);
+                  });
+        })->where('date_debut', '>', now())->count();
+    }
+
+    /**
+     * Obtenir le nombre d'événements aujourd'hui
+     */
+    private function getUserTodayEventsCount($userId)
+    {
+        return Event::where(function($query) use ($userId) {
+            $query->where('id_organisateur', $userId)
+                  ->orWhereHas('participants', function($q) use ($userId) {
+                      $q->where('id_utilisateur', $userId);
+                  });
+        })->whereDate('date_debut', today())->count();
+    }
+
+    /**
+     * Obtenir les invitations en attente de réponse
+     */
+    private function getUserPendingInvitations($userId)
+    {
+        return Event::whereHas('participants', function($query) use ($userId) {
+            $query->where('id_utilisateur', $userId)
+                  ->where('statut_presence', 'invite');
+        })->with(['participants' => function($query) use ($userId) {
+            $query->where('id_utilisateur', $userId);
+        }])->orderBy('date_debut')->limit(5)->get();
+    }
+
+    /**
+     * Obtenir les événements à venir confirmés
+     */
+    private function getUserUpcomingEvents($userId)
+    {
+        return Event::where(function($query) use ($userId) {
+            $query->where('id_organisateur', $userId)
+                  ->orWhereHas('participants', function($q) use ($userId) {
+                      $q->where('id_utilisateur', $userId)
+                        ->whereIn('statut_presence', ['confirme', 'organisateur']);
+                  });
+        })->where('date_debut', '>', now())
+          ->orderBy('date_debut')
+          ->limit(5)
+          ->get();
+    }
+
+    /**
+     * Obtenir les événements d'aujourd'hui
+     */
+    private function getUserTodayEvents($userId)
+    {
+        return Event::where(function($query) use ($userId) {
+            $query->where('id_organisateur', $userId)
+                  ->orWhereHas('participants', function($q) use ($userId) {
+                      $q->where('id_utilisateur', $userId);
+                  });
+        })->whereDate('date_debut', today())
+          ->orderBy('date_debut')
+          ->get();
     }
 
     /**

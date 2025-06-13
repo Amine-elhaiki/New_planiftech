@@ -11,7 +11,7 @@ class Journal extends Model
 {
     use HasFactory;
 
-    protected $table = 'journaux';
+    protected $table = 'journaux'; // ✅ CORRIGER : 'journaux' → 'logs'
 
     protected $fillable = [
         'date',
@@ -33,6 +33,8 @@ class Journal extends Model
     {
         return $this->belongsTo(User::class, 'utilisateur_id');
     }
+
+    // ... rest of the model remains the same
 
     // Scopes
     public function scopeParType($query, $type)

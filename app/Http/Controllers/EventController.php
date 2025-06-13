@@ -15,192 +15,124 @@ use Carbon\Carbon;
 
 class EventController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    
+
     /**
      * Afficher la liste des événements
      */
     public function index(Request $request)
     {
-        $query = Event::with(['organisateur', 'projet', 'participants.utilisateur']);
+        $view = $request->get('view', 'cards');
+        $user = Auth::user();
+        
+        $query = Event::with(['organisateur', 'projet', 'participants'])
+                     ->orderBy('date_debut', 'asc');
 
-        // Filtres de recherche
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function($q) use ($search) {
-                $q->where('titre', 'like', "%{$search}%")
-                  ->orWhere('lieu', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        // Filtre par type
-        if ($request->filled('type')) {
-            $query->where('type', $request->input('type'));
-        }
-
-        // Filtre par statut
-        if ($request->filled('statut')) {
-            $query->where('statut', $request->input('statut'));
-        }
-
-        // Filtre par priorité
-        if ($request->filled('priorite')) {
-            $query->where('priorite', $request->input('priorite'));
-        }
-
-        // Filtre par organisateur
-        if ($request->filled('organisateur')) {
-            $query->where('id_organisateur', $request->input('organisateur'));
-        }
-
-        // Filtre par projet
-        if ($request->filled('projet')) {
-            $query->where('id_projet', $request->input('projet'));
-        }
-
-        // Filtre par utilisateur (événements où il participe)
-        if ($request->filled('utilisateur')) {
-            $userId = $request->input('utilisateur');
-            $query->where(function($q) use ($userId) {
-                $q->where('id_organisateur', $userId)
-                  ->orWhereHas('participants', function($participantQuery) use ($userId) {
-                      $participantQuery->where('id_utilisateur', $userId);
+        // ✅ FILTRAGE SELON LE RÔLE
+        if ($user->role !== 'admin') {
+            // Pour les non-admin : voir seulement leurs événements
+            $query->where(function($q) use ($user) {
+                $q->where('id_organisateur', $user->id)
+                  ->orWhereHas('participants', function($subQ) use ($user) {
+                      $subQ->where('id_utilisateur', $user->id);
                   });
             });
         }
 
-        // Filtre par période
-        if ($request->filled('date_debut')) {
-            $query->where('date_debut', '>=', $request->input('date_debut') . ' 00:00:00');
+        // Appliquer les filtres
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('lieu', 'like', "%{$search}%");
+            });
         }
 
-        if ($request->filled('date_fin')) {
-            $query->where('date_fin', '<=', $request->input('date_fin') . ' 23:59:59');
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
         }
 
-        // Vue par défaut
-        $view = $request->input('view', 'cards');
-        $events = $query->orderBy('date_debut', 'asc')->paginate(12)->withQueryString();
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->statut);
+        }
 
-        // Statistiques pour le dashboard
-        $stats = $this->getEventStats();
+        if ($request->filled('priorite')) {
+            $query->where('priorite', $request->priorite);
+        }
 
-        return view('events.index', compact('events', 'view', 'stats'));
-    }
+        // Filtrer par statut de participation pour les non-admin
+        if ($user->role !== 'admin' && $request->filled('participation')) {
+            $participation = $request->participation;
+            $query->whereHas('participants', function($q) use ($user, $participation) {
+                $q->where('id_utilisateur', $user->id)
+                  ->where('statut_presence', $participation);
+            });
+        }
 
-    /**
-     * Données pour le calendrier (AJAX)
-     */
-    public function calendarData(Request $request)
-    {
-        $events = Event::with(['organisateur'])
-            ->whereBetween('date_debut', [
-                $request->input('start'),
-                $request->input('end')
-            ])
-            ->get()
-            ->map(function($event) {
-                return [
-                    'id' => $event->id,
-                    'title' => $event->titre,
-                    'start' => $event->date_debut->toISOString(),
-                    'end' => $event->date_fin->toISOString(),
-                    'backgroundColor' => $this->getEventColor($event),
-                    'borderColor' => $this->getEventColor($event),
-                    'textColor' => '#fff',
-                    'url' => route('events.show', $event)
-                ];
+        // Pagination
+        $events = $query->paginate(12)->withQueryString();
+
+        // ✅ STATISTIQUES PERSONNALISÉES PAR RÔLE
+        if ($user->role === 'admin') {
+            $stats = [
+                'total' => Event::count(),
+                'planifies' => Event::where('statut', 'planifie')->count(),
+                'en_cours' => Event::where('statut', 'en_cours')->count(),
+                'termines' => Event::where('statut', 'termine')->count(),
+                'cette_semaine' => Event::whereBetween('date_debut', [
+                    now()->startOfWeek(),
+                    now()->endOfWeek()
+                ])->count(),
+                'ce_mois' => Event::whereBetween('date_debut', [
+                    now()->startOfMonth(),
+                    now()->endOfMonth()
+                ])->count(),
+            ];
+        } else {
+            // Statistiques pour l'utilisateur connecté uniquement
+            $userEventQuery = Event::where(function($q) use ($user) {
+                $q->where('id_organisateur', $user->id)
+                  ->orWhereHas('participants', function($subQ) use ($user) {
+                      $subQ->where('id_utilisateur', $user->id);
+                  });
             });
 
-        return response()->json($events);
-    }
-
-    /**
-     * Afficher le formulaire de création
-     */
-    public function create()
-    {
-        $users = User::where('statut', 'actif')->orderBy('nom')->get();
-        $projects = Project::whereIn('statut', ['planifie', 'en_cours'])->orderBy('nom')->get();
-
-        return view('events.create', compact('users', 'projects'));
-    }
-
-    /**
-     * Enregistrer un nouvel événement
-     */
-    public function store(Request $request)
-    {
-        try {
-            $validatedData = $request->validate([
-                'titre' => 'required|string|max:255',
-                'description' => 'required|string|max:2000',
-                'type' => 'required|in:intervention,reunion,formation,visite',
-                'date_debut' => 'required|date|after:now',
-                'date_fin' => 'required|date|after:date_debut',
-                'lieu' => 'required|string|max:255',
-                'coordonnees_gps' => 'nullable|string|max:100',
-                'priorite' => 'required|in:normale,haute,urgente',
-                'id_projet' => 'nullable|exists:projects,id',
-                'participants' => 'nullable|array',
-                'participants.*' => 'exists:users,id'
-            ], [
-                'titre.required' => 'Le titre est obligatoire.',
-                'titre.max' => 'Le titre ne peut pas dépasser 255 caractères.',
-                'description.required' => 'La description est obligatoire.',
-                'description.max' => 'La description ne peut pas dépasser 2000 caractères.',
-                'type.required' => 'Le type d\'événement est obligatoire.',
-                'type.in' => 'Le type d\'événement sélectionné est invalide.',
-                'date_debut.required' => 'La date de début est obligatoire.',
-                'date_debut.after' => 'La date de début doit être dans le futur.',
-                'date_fin.required' => 'La date de fin est obligatoire.',
-                'date_fin.after' => 'La date de fin doit être postérieure à la date de début.',
-                'lieu.required' => 'Le lieu est obligatoire.',
-                'lieu.max' => 'Le lieu ne peut pas dépasser 255 caractères.',
-                'priorite.required' => 'La priorité est obligatoire.',
-                'priorite.in' => 'La priorité sélectionnée est invalide.',
-                'id_projet.exists' => 'Le projet sélectionné n\'existe pas.',
-                'participants.array' => 'La liste des participants est invalide.',
-                'participants.*.exists' => 'Un des participants sélectionnés n\'existe pas.'
-            ]);
-
-            DB::beginTransaction();
-
-            // Créer l'événement
-            $eventData = $validatedData;
-            $eventData['id_organisateur'] = Auth::id();
-            $eventData['statut'] = 'planifie';
-
-            $participants = $eventData['participants'] ?? [];
-            unset($eventData['participants']);
-
-            $event = Event::create($eventData);
-
-            // Ajouter l'organisateur comme participant avec rôle organisateur
-            $this->ajouterParticipant($event->id, Auth::id(), 'confirme', 'organisateur');
-
-            // Ajouter les autres participants
-            foreach ($participants as $participantId) {
-                if ($participantId != Auth::id()) {
-                    $this->ajouterParticipant($event->id, $participantId, 'invite', 'participant');
-                }
-            }
-
-            // Créer des notifications pour les participants
-            $this->creerNotificationsParticipants($event, $participants);
-
-            DB::commit();
-
-            return redirect()->route('events.index')
-                           ->with('success', 'Événement créé avec succès.');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
-        } catch (\Exception $e) {
-            DB::rollback();
-            Log::error('Erreur lors de la création de l\'événement: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Erreur lors de la création de l\'événement: ' . $e->getMessage()])
-                         ->withInput();
+            $stats = [
+                'total' => $userEventQuery->count(),
+                'organises' => Event::where('id_organisateur', $user->id)->count(),
+                'confirmes' => ParticipantEvent::where('id_utilisateur', $user->id)
+                                               ->where('statut_presence', 'confirme')
+                                               ->count(),
+                'a_venir' => $userEventQuery->where('date_debut', '>', now())->count(),
+            ];
         }
+
+        $typesOptions = Event::getTypesDisponibles();
+        $statutsOptions = Event::getStatutsDisponibles();
+        $prioritesOptions = Event::getPrioritesDisponibles();
+
+        // ✅ PASSER LES INFORMATIONS DE RÔLE À LA VUE
+        $roleInfo = [
+            'role' => $user->role,
+            'isAdmin' => $user->role === 'admin',
+            'roleClass' => $user->role === 'admin' ? 'admin' : 'technicien',
+        ];
+
+        return view('events.index', compact(
+            'events', 
+            'stats', 
+            'view', 
+            'typesOptions', 
+            'statutsOptions', 
+            'prioritesOptions',
+            'roleInfo'
+        ));
     }
 
     /**
@@ -208,8 +140,12 @@ class EventController extends Controller
      */
     public function show(Event $event)
     {
-        // Vérifier les permissions
-        if (!$this->canViewEvent($event)) {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && 
+            $event->id_organisateur !== $user->id &&
+            !$event->participants()->where('id_utilisateur', $user->id)->exists()) {
             abort(403, 'Vous n\'avez pas l\'autorisation de voir cet événement.');
         }
 
@@ -219,20 +155,106 @@ class EventController extends Controller
     }
 
     /**
+     * Afficher le formulaire de création
+     */
+    public function create()
+    {
+        $utilisateurs = User::where('statut', 'actif')->orderBy('nom')->get();
+        $projets = Project::whereIn('statut', ['planifie', 'en_cours'])->orderBy('nom')->get();
+        
+        $typesOptions = Event::getTypesDisponibles();
+        $prioritesOptions = Event::getPrioritesDisponibles();
+
+        return view('events.create', compact('utilisateurs', 'projets', 'typesOptions', 'prioritesOptions'));
+    }
+
+    /**
+     * Enregistrer un nouvel événement
+     */
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'titre' => 'required|string|max:255',
+            'description' => 'required|string|max:2000',
+            'type' => 'required|in:' . implode(',', array_keys(Event::getTypesDisponibles())),
+            'date_debut' => 'required|date|after:now',
+            'date_fin' => 'required|date|after:date_debut',
+            'lieu' => 'required|string|max:255',
+            'coordonnees_gps' => 'nullable|string|max:100',
+            'priorite' => 'required|in:' . implode(',', array_keys(Event::getPrioritesDisponibles())),
+            'id_projet' => 'nullable|exists:projects,id',
+            'participants' => 'nullable|array',
+            'participants.*' => 'exists:users,id'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $validatedData['id_organisateur'] = Auth::id();
+            $validatedData['statut'] = 'planifie';
+
+            $event = Event::create($validatedData);
+
+            // Ajouter l'organisateur comme participant confirmé
+            $event->ajouterParticipant(Auth::id(), 'confirme', 'organisateur');
+
+            // Ajouter les autres participants
+            if ($request->filled('participants')) {
+                foreach ($request->participants as $userId) {
+                    if ($userId != Auth::id()) {
+                        $event->ajouterParticipant($userId, 'invite', 'participant');
+                        $this->creerNotificationParticipant($event, $userId);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('events.index')
+                            ->with('success', 'Événement créé avec succès.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la création de l\'événement: ' . $e->getMessage());
+            
+            return back()->withInput()
+                        ->withErrors(['error' => 'Erreur lors de la création de l\'événement.']);
+        }
+    }
+
+    /**
      * Afficher le formulaire d'édition
      */
     public function edit(Event $event)
     {
-        // Vérifier les permissions
-        if (!$this->canEditEvent($event)) {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && $event->id_organisateur !== $user->id) {
             abort(403, 'Vous n\'avez pas l\'autorisation de modifier cet événement.');
         }
 
-        $users = User::where('statut', 'actif')->orderBy('nom')->get();
-        $projects = Project::whereIn('statut', ['planifie', 'en_cours'])->orderBy('nom')->get();
+        if (!$event->peutEtreModifie()) {
+            return redirect()->route('events.show', $event)
+                           ->with('error', 'Cet événement ne peut plus être modifié.');
+        }
+
+        $utilisateurs = User::where('statut', 'actif')->orderBy('nom')->get();
+        $projets = Project::whereIn('statut', ['planifie', 'en_cours'])->orderBy('nom')->get();
+        
+        $typesOptions = Event::getTypesDisponibles();
+        $statutsOptions = Event::getStatutsDisponibles();
+        $prioritesOptions = Event::getPrioritesDisponibles();
+
         $event->load('participants');
 
-        return view('events.edit', compact('event', 'users', 'projects'));
+        return view('events.edit', compact(
+            'event', 
+            'utilisateurs', 
+            'projets', 
+            'typesOptions', 
+            'statutsOptions', 
+            'prioritesOptions'
+        ));
     }
 
     /**
@@ -240,50 +262,53 @@ class EventController extends Controller
      */
     public function update(Request $request, Event $event)
     {
-        // Vérifier les permissions
-        if (!$this->canEditEvent($event)) {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && $event->id_organisateur !== $user->id) {
             abort(403, 'Vous n\'avez pas l\'autorisation de modifier cet événement.');
         }
 
+        if (!$event->peutEtreModifie()) {
+            return redirect()->route('events.show', $event)
+                           ->with('error', 'Cet événement ne peut plus être modifié.');
+        }
+
+        $validatedData = $request->validate([
+            'titre' => 'required|string|max:255',
+            'description' => 'required|string|max:2000',
+            'type' => 'required|in:' . implode(',', array_keys(Event::getTypesDisponibles())),
+            'date_debut' => 'required|date',
+            'date_fin' => 'required|date|after:date_debut',
+            'lieu' => 'required|string|max:255',
+            'coordonnees_gps' => 'nullable|string|max:100',
+            'statut' => 'required|in:' . implode(',', array_keys(Event::getStatutsDisponibles())),
+            'priorite' => 'required|in:' . implode(',', array_keys(Event::getPrioritesDisponibles())),
+            'id_projet' => 'nullable|exists:projects,id',
+            'participants' => 'nullable|array',
+            'participants.*' => 'exists:users,id'
+        ]);
+
+        DB::beginTransaction();
         try {
-            $validatedData = $request->validate([
-                'titre' => 'required|string|max:255',
-                'description' => 'required|string|max:2000',
-                'type' => 'required|in:intervention,reunion,formation,visite',
-                'date_debut' => 'required|date',
-                'date_fin' => 'required|date|after:date_debut',
-                'lieu' => 'required|string|max:255',
-                'coordonnees_gps' => 'nullable|string|max:100',
-                'statut' => 'required|in:planifie,en_cours,termine,annule,reporte',
-                'priorite' => 'required|in:normale,haute,urgente',
-                'id_projet' => 'nullable|exists:projects,id',
-                'participants' => 'nullable|array',
-                'participants.*' => 'exists:users,id'
-            ]);
+            $event->update($validatedData);
 
-            DB::beginTransaction();
-
-            $eventData = $validatedData;
-            $participants = $eventData['participants'] ?? [];
-            unset($eventData['participants']);
-
-            $event->update($eventData);
-
-            // Mettre à jour les participants
-            $this->updateParticipants($event, $participants);
+            // Mettre à jour les participants si fournis
+            if ($request->has('participants')) {
+                $this->updateParticipants($event, $request->participants ?? []);
+            }
 
             DB::commit();
 
-            return redirect()->route('events.index')
-                           ->with('success', 'Événement mis à jour avec succès.');
+            return redirect()->route('events.show', $event)
+                            ->with('success', 'Événement mis à jour avec succès.');
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
             Log::error('Erreur lors de la mise à jour de l\'événement: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Erreur lors de la mise à jour: ' . $e->getMessage()])
-                         ->withInput();
+            
+            return back()->withInput()
+                        ->withErrors(['error' => 'Erreur lors de la mise à jour de l\'événement.']);
         }
     }
 
@@ -292,15 +317,23 @@ class EventController extends Controller
      */
     public function destroy(Event $event)
     {
-        // Vérifier les permissions
-        if (!$this->canEditEvent($event)) {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && $event->id_organisateur !== $user->id) {
             abort(403, 'Vous n\'avez pas l\'autorisation de supprimer cet événement.');
         }
 
-        try {
-            DB::beginTransaction();
+        if (!$event->peutEtreSupprime()) {
+            return redirect()->route('events.show', $event)
+                           ->with('error', 'Cet événement ne peut pas être supprimé.');
+        }
 
-            // Supprimer les participants (soft delete)
+        DB::beginTransaction();
+        try {
+            $eventTitle = $event->titre;
+
+            // Supprimer les participations associées
             $event->participants()->delete();
 
             // Supprimer l'événement
@@ -309,12 +342,13 @@ class EventController extends Controller
             DB::commit();
 
             return redirect()->route('events.index')
-                           ->with('success', 'Événement supprimé avec succès.');
+                            ->with('success', 'Événement supprimé avec succès.');
 
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
             Log::error('Erreur lors de la suppression de l\'événement: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
+            
+            return back()->withErrors(['error' => 'Erreur lors de la suppression de l\'événement.']);
         }
     }
 
@@ -323,16 +357,38 @@ class EventController extends Controller
      */
     public function confirmerParticipation(Request $request, Event $event)
     {
-        $userId = Auth::id();
+        $userId = auth()->id();
         $participant = $event->participants()->where('id_utilisateur', $userId)->first();
 
         if (!$participant) {
             return back()->withErrors(['error' => 'Vous n\'êtes pas invité à cet événement.']);
         }
 
-        $participant->confirmerPresence($request->input('commentaire'));
+        if ($participant->statut_presence !== 'invite') {
+            return back()->withErrors(['error' => 'Vous avez déjà répondu à cette invitation.']);
+        }
 
-        return back()->with('success', 'Votre participation a été confirmée.');
+        DB::beginTransaction();
+        try {
+            $participant->update([
+                'statut_presence' => 'confirme',
+                'date_reponse' => now(),
+                'commentaire' => $request->input('commentaire')
+            ]);
+
+            // Notifier l'organisateur
+            if ($event->organisateur && $event->organisateur->id !== $userId) {
+                $this->creerNotificationOrganisateur($event, $userId, 'confirme');
+            }
+
+            DB::commit();
+
+            return back()->with('success', 'Votre participation a été confirmée.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Erreur lors de la confirmation.']);
+        }
     }
 
     /**
@@ -340,76 +396,263 @@ class EventController extends Controller
      */
     public function declinerParticipation(Request $request, Event $event)
     {
-        $userId = Auth::id();
+        $userId = auth()->id();
         $participant = $event->participants()->where('id_utilisateur', $userId)->first();
 
         if (!$participant) {
             return back()->withErrors(['error' => 'Vous n\'êtes pas invité à cet événement.']);
         }
 
-        $participant->declinerInvitation($request->input('commentaire'));
+        if ($participant->statut_presence !== 'invite') {
+            return back()->withErrors(['error' => 'Vous avez déjà répondu à cette invitation.']);
+        }
 
-        return back()->with('success', 'Votre participation a été déclinée.');
+        DB::beginTransaction();
+        try {
+            $participant->update([
+                'statut_presence' => 'decline',
+                'date_reponse' => now(),
+                'commentaire' => $request->input('commentaire')
+            ]);
+
+            // Notifier l'organisateur
+            if ($event->organisateur && $event->organisateur->id !== $userId) {
+                $this->creerNotificationOrganisateur($event, $userId, 'decline');
+            }
+
+            DB::commit();
+
+            return back()->with('success', 'Votre réponse a été enregistrée.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Erreur lors de l\'enregistrement de votre réponse.']);
+        }
+    }
+
+    /**
+     * Marquer la présence d'un participant
+     */
+    public function marquerPresence(Request $request, Event $event)
+    {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && $event->id_organisateur !== $user->id) {
+            abort(403, 'Vous n\'avez pas l\'autorisation de gérer cet événement.');
+        }
+
+        $validatedData = $request->validate([
+            'participant_id' => 'required|exists:users,id',
+            'statut' => 'required|in:present,absent,excuse'
+        ]);
+
+        $participant = $event->participants()
+                            ->where('id_utilisateur', $validatedData['participant_id'])
+                            ->first();
+
+        if (!$participant) {
+            return back()->withErrors(['error' => 'Participant non trouvé.']);
+        }
+
+        $participant->update([
+            'statut_presence' => $validatedData['statut']
+        ]);
+
+        return back()->with('success', 'Présence mise à jour avec succès.');
+    }
+
+    /**
+     * Dupliquer un événement
+     */
+    public function duplicate(Event $event)
+    {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && 
+            $event->id_organisateur !== $user->id &&
+            !$event->participants()->where('id_utilisateur', $user->id)->exists()) {
+            abort(403, 'Vous n\'avez pas l\'autorisation de dupliquer cet événement.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $newEvent = $event->replicate();
+            $newEvent->titre = $event->titre . ' (Copie)';
+            $newEvent->date_debut = $event->date_debut->addWeek();
+            $newEvent->date_fin = $event->date_fin->addWeek();
+            $newEvent->statut = 'planifie';
+            $newEvent->id_organisateur = Auth::id();
+            $newEvent->save();
+
+            // Dupliquer les participants (sauf l'ancien organisateur)
+            foreach ($event->participants as $participant) {
+                if ($participant->role_evenement !== 'organisateur') {
+                    $newEvent->ajouterParticipant($participant->id_utilisateur, 'invite', $participant->role_evenement);
+                }
+            }
+
+            // Ajouter le nouvel organisateur
+            $newEvent->ajouterParticipant(Auth::id(), 'confirme', 'organisateur');
+
+            DB::commit();
+
+            return redirect()->route('events.edit', $newEvent)
+                            ->with('success', 'Événement dupliqué avec succès. Vous pouvez maintenant le modifier.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la duplication de l\'événement: ' . $e->getMessage());
+            
+            return back()->withErrors(['error' => 'Erreur lors de la duplication de l\'événement.']);
+        }
+    }
+
+    /**
+     * Mettre à jour le statut d'un événement
+     */
+    public function updateStatus(Request $request, Event $event)
+    {
+        // ✅ Vérification simple sans policy
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin' && $event->id_organisateur !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Permission refusée'], 403);
+        }
+
+        $validatedData = $request->validate([
+            'statut' => 'required|in:' . implode(',', array_keys(Event::getStatutsDisponibles()))
+        ]);
+
+        try {
+            $event->update($validatedData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Statut mis à jour avec succès',
+                'event' => $event
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du statut'
+            ], 500);
+        }
+    }
+
+    /**
+     * Données pour le calendrier (AJAX)
+     */
+    public function calendarData(Request $request)
+    {
+        $user = Auth::user();
+        $query = Event::with('organisateur');
+
+        // Filtrer selon le rôle
+        if ($user->role !== 'admin') {
+            $query->where(function($q) use ($user) {
+                $q->where('id_organisateur', $user->id)
+                  ->orWhereHas('participants', function($participantQuery) use ($user) {
+                      $participantQuery->where('id_utilisateur', $user->id);
+                  });
+            });
+        }
+
+        $events = $query->get()->map(function ($event) {
+            return [
+                'id' => $event->id,
+                'title' => $event->titre,
+                'start' => $event->date_debut->toISOString(),
+                'end' => $event->date_fin->toISOString(),
+                'backgroundColor' => $this->getEventColor($event),
+                'borderColor' => $this->getEventColor($event),
+                'url' => route('events.show', $event->id),
+                'extendedProps' => [
+                    'type' => $event->type,
+                    'priorite' => $event->priorite,
+                    'statut' => $event->statut,
+                    'lieu' => $event->lieu,
+                    'organisateur' => $event->organisateur->nom_complet ?? 'Inconnu'
+                ]
+            ];
+        });
+
+        return response()->json($events);
+    }
+
+    /**
+     * Exporter les événements en CSV (Admin seulement)
+     */
+    public function export(Request $request)
+    {
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Accès refusé.');
+        }
+
+        $query = Event::with(['organisateur', 'projet']);
+
+        // Appliquer les filtres
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->statut);
+        }
+
+        if ($request->filled('priorite')) {
+            $query->where('priorite', $request->priorite);
+        }
+
+        $events = $query->orderBy('date_debut')->get();
+
+        $csvData = [];
+        $csvData[] = [
+            'Titre',
+            'Type',
+            'Date début',
+            'Date fin',
+            'Lieu',
+            'Statut',
+            'Priorité',
+            'Organisateur',
+            'Projet',
+            'Participants'
+        ];
+
+        foreach ($events as $event) {
+            $csvData[] = [
+                $event->titre,
+                $event->type_libelle,
+                $event->date_debut->format('d/m/Y H:i'),
+                $event->date_fin->format('d/m/Y H:i'),
+                $event->lieu,
+                $event->statut_libelle,
+                $event->priorite_libelle,
+                $event->organisateur->nom_complet ?? 'Inconnu',
+                $event->projet->nom ?? 'Aucun',
+                $event->nombre_total_participants
+            ];
+        }
+
+        $csv = '';
+        foreach ($csvData as $row) {
+            $csv .= implode(',', array_map(function($field) {
+                return '"' . str_replace('"', '""', $field) . '"';
+            }, $row)) . "\n";
+        }
+
+        $csv = "\xEF\xBB\xBF" . $csv;
+        $filename = 'evenements_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
     // MÉTHODES UTILITAIRES PRIVÉES
-
-    /**
-     * Vérifier si l'utilisateur peut voir l'événement
-     */
-    private function canViewEvent(Event $event)
-    {
-        $user = Auth::user();
-
-        // Admin peut tout voir
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        // Organisateur peut voir son événement
-        if ($event->id_organisateur === $user->id) {
-            return true;
-        }
-
-        // Participant peut voir l'événement
-        return $event->participants()->where('id_utilisateur', $user->id)->exists();
-    }
-
-    /**
-     * Vérifier si l'utilisateur peut modifier l'événement
-     */
-    private function canEditEvent(Event $event)
-    {
-        $user = Auth::user();
-
-        // Admin peut tout modifier
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        // Organisateur peut modifier son événement si pas terminé/annulé
-        if ($event->id_organisateur === $user->id && $event->peutEtreModifie()) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Ajouter un participant à un événement
-     */
-    private function ajouterParticipant($eventId, $userId, $statut = 'invite', $role = 'participant')
-    {
-        return ParticipantEvent::create([
-            'id_evenement' => $eventId,
-            'id_utilisateur' => $userId,
-            'statut_presence' => $statut,
-            'role_evenement' => $role,
-            'date_invitation' => now(),
-            'notification_envoyee' => false,
-            'rappel_envoye' => false
-        ]);
-    }
 
     /**
      * Mettre à jour la liste des participants
@@ -425,7 +668,8 @@ class EventController extends Controller
         // Participants à ajouter
         $toAdd = array_diff($participantIds, $currentParticipants);
         foreach ($toAdd as $userId) {
-            $this->ajouterParticipant($event->id, $userId);
+            $event->ajouterParticipant($userId, 'invite', 'participant');
+            $this->creerNotificationParticipant($event, $userId);
         }
 
         // Participants à supprimer
@@ -439,53 +683,47 @@ class EventController extends Controller
     }
 
     /**
-     * Créer des notifications pour les participants
+     * Créer une notification pour un participant
      */
-    private function creerNotificationsParticipants(Event $event, array $participantIds)
+    private function creerNotificationParticipant(Event $event, $userId)
     {
-        foreach ($participantIds as $participantId) {
-            if ($participantId != Auth::id()) {
+        if (class_exists('App\Models\Notification')) {
+            try {
                 Notification::create([
                     'titre' => 'Invitation à un événement',
                     'message' => "Vous êtes invité à l'événement '{$event->titre}' prévu le " .
-                               $event->date_debut->format('d/m/Y à H:i'),
+                               $event->date_debut->format('d/m/Y à H:i') . " à {$event->lieu}.",
                     'type' => 'evenement',
-                    'destinataire_id' => $participantId,
+                    'destinataire_id' => $userId,
                     'lue' => false
                 ]);
+            } catch (\Exception $e) {
+                Log::warning('Impossible de créer la notification: ' . $e->getMessage());
             }
         }
     }
 
     /**
-     * Obtenir les statistiques des événements
+     * Créer une notification pour l'organisateur
      */
-    private function getEventStats()
+    private function creerNotificationOrganisateur(Event $event, $userId, $action)
     {
-        $userId = Auth::id();
-        $role = Auth::user()->role;
-
-        $query = Event::query();
-
-        // Si pas admin, filtrer par utilisateur
-        if ($role !== 'admin') {
-            $query->where(function($q) use ($userId) {
-                $q->where('id_organisateur', $userId)
-                  ->orWhereHas('participants', function($participantQuery) use ($userId) {
-                      $participantQuery->where('id_utilisateur', $userId);
-                  });
-            });
+        if (class_exists('App\Models\Notification')) {
+            try {
+                $user = User::find($userId);
+                $actionText = $action === 'confirme' ? 'confirmé sa participation' : 'décliné l\'invitation';
+                
+                Notification::create([
+                    'titre' => 'Réponse à une invitation',
+                    'message' => "{$user->nom_complet} a {$actionText} à l'événement \"{$event->titre}\".",
+                    'type' => 'evenement',
+                    'destinataire_id' => $event->id_organisateur,
+                    'lue' => false
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Impossible de créer la notification: ' . $e->getMessage());
+            }
         }
-
-        return [
-            'total' => $query->count(),
-            'planifies' => $query->where('statut', 'planifie')->count(),
-            'en_cours' => $query->where('statut', 'en_cours')->count(),
-            'termines' => $query->where('statut', 'termine')->count(),
-            'a_venir' => $query->where('date_debut', '>', now())->count(),
-            'ce_mois' => $query->whereMonth('date_debut', now()->month)
-                              ->whereYear('date_debut', now()->year)->count()
-        ];
     }
 
     /**
@@ -493,12 +731,11 @@ class EventController extends Controller
      */
     private function getEventColor(Event $event)
     {
-        return match($event->type) {
-            'intervention' => '#dc3545', // Rouge
-            'reunion' => '#0d6efd',      // Bleu
-            'formation' => '#198754',    // Vert
-            'visite' => '#fd7e14',       // Orange
-            default => '#6c757d'         // Gris
+        return match($event->priorite) {
+            'urgente' => '#ef4444',
+            'haute' => '#f59e0b',
+            'normale' => '#3b82f6',
+            default => '#6b7280'
         };
     }
 }

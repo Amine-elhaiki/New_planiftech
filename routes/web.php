@@ -101,9 +101,7 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::prefix('users')->name('users.')->group(function () {
         // Routes accessibles aux admins ET techniciens (lecture)
-        Route::get('/', [UserController::class, 'index'])->name('index');
         Route::get('/search/api', [UserController::class, 'search'])->name('search');
-        Route::get('/{user}', [UserController::class, 'show'])->name('show');
 
         // Routes ADMIN SEULEMENT - modification/création
         Route::middleware('admin')->group(function () {
@@ -112,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
             Route::put('/{user}', [UserController::class, 'update'])->name('update');
             Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::patch('/{user}/deactivate', [UserController::class, 'deactivate'])->name('deactivate');
 
             // Actions spéciales admin
             Route::patch('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
@@ -120,8 +119,16 @@ Route::middleware(['auth'])->group(function () {
 
             // Export et statistiques admin
             Route::get('/export/csv', [UserController::class, 'export'])->name('export');
+            Route::get('/export/excel', [UserController::class, 'exportExcel'])->name('export.excel');
             Route::get('/statistics/overview', [UserController::class, 'statistics'])->name('statistics');
         });
+
+            // ✅ 3. ROUTES GÉNÉRALES
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        
+        // ✅ 4. ROUTES AVEC PARAMÈTRES EN DERNIER
+        Route::get('/{user}', [UserController::class, 'show'])->name('show');
+
     });
 
     /*

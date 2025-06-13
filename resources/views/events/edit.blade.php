@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Créer un Événement')
+@section('title', 'Modifier l\'événement - ' . $event->titre)
 
 @push('styles')
 <style>
-    .create-container {
+    .edit-container {
         max-width: 900px;
         margin: 0 auto;
     }
@@ -17,7 +17,7 @@
     }
 
     .form-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         color: white;
         padding: 2rem;
         text-align: center;
@@ -51,8 +51,8 @@
     }
 
     .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
         outline: none;
     }
 
@@ -86,16 +86,16 @@
     }
 
     .event-type-card:hover {
-        border-color: #667eea;
-        background: #f8faff;
+        border-color: #f59e0b;
+        background: #fef3c7;
     }
 
     .event-type-card.selected {
-        border-color: #667eea;
-        background: #667eea;
+        border-color: #f59e0b;
+        background: #f59e0b;
         color: white;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
     }
 
     .event-type-card input[type="radio"] {
@@ -130,8 +130,8 @@
     }
 
     .priority-option.selected {
-        border-color: #667eea;
-        background: #667eea;
+        border-color: #f59e0b;
+        background: #f59e0b;
         color: white;
     }
 
@@ -146,11 +146,104 @@
     .priority-urgente { border-color: #ef4444; }
     .priority-urgente.selected { background: #ef4444; border-color: #ef4444; }
 
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .status-option {
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .status-option:hover {
+        transform: translateY(-1px);
+    }
+
+    .status-option.selected {
+        border-color: #f59e0b;
+        background: #f59e0b;
+        color: white;
+    }
+
+    .status-option input[type="radio"] {
+        display: none;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #d97706, #b45309);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+        color: white;
+        text-decoration: none;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+        box-shadow: 0 4px 14px rgba(107, 114, 128, 0.4);
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
     .participants-section {
         border: 2px solid #e5e7eb;
         border-radius: 10px;
         padding: 1.5rem;
         background: #f9fafb;
+        margin-bottom: 1.5rem;
     }
 
     .participants-header {
@@ -211,7 +304,7 @@
         width: 32px;
         height: 32px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #f59e0b, #d97706);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -236,80 +329,6 @@
         color: #6b7280;
     }
 
-    .participant-role {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        background: #e5e7eb;
-        color: #374151;
-    }
-
-    .btn-action {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 10px;
-        padding: 0.75rem 1.5rem;
-        color: white;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    .btn-action:hover {
-        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-secondary {
-        background: #6b7280;
-        border: none;
-        border-radius: 10px;
-        padding: 0.75rem 1.5rem;
-        color: white;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-block;
-        transition: all 0.3s ease;
-    }
-
-    .btn-secondary:hover {
-        background: #4b5563;
-        color: white;
-        text-decoration: none;
-        transform: translateY(-1px);
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: flex-end;
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid #e5e7eb;
-    }
-
-    .selection-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-sm {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
-        border-radius: 6px;
-        border: 1px solid #d1d5db;
-        background: white;
-        color: #374151;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-sm:hover {
-        background: #f3f4f6;
-        border-color: #9ca3af;
-    }
-
     .error-alert {
         background: #fee2e2;
         border: 1px solid #fca5a5;
@@ -319,20 +338,31 @@
         margin-bottom: 1.5rem;
     }
 
-    .success-alert {
-        background: #d1fae5;
-        border: 1px solid #a7f3d0;
-        color: #065f46;
+    .info-alert {
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        color: #92400e;
         padding: 0.75rem 1rem;
         border-radius: 8px;
         margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 @endpush
 
 @section('content')
 <div class="container-fluid py-4">
-    <div class="create-container">
+    <div class="edit-container">
 
         <!-- Messages d'erreur -->
         @if ($errors->any())
@@ -346,19 +376,30 @@
             </div>
         @endif
 
+        <!-- Message d'information -->
+        @if(!$event->peutEtreModifie())
+            <div class="info-alert">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Attention :</strong> Cet événement ne peut plus être modifié car il est {{ $event->statut_libelle }} 
+                @if($event->est_passe) ou déjà passé @endif.
+                Seules certaines informations peuvent être mises à jour.
+            </div>
+        @endif
+
         <!-- Formulaire principal -->
         <div class="form-card">
             <div class="form-header">
                 <h1 class="h3 mb-2">
-                    <i class="bi bi-calendar-plus me-2"></i>
-                    Créer un Nouvel Événement
+                    <i class="bi bi-pencil me-2"></i>
+                    Modifier l'Événement
                 </h1>
-                <p class="mb-0">Planifiez vos interventions, réunions et formations ORMVAT</p>
+                <p class="mb-0">Mettre à jour les informations de l'événement "{{ $event->titre }}"</p>
             </div>
 
             <div class="form-body">
-                <form method="POST" action="{{ route('events.store') }}" id="eventForm">
+                <form method="POST" action="{{ route('events.update', $event) }}" id="eventForm">
                     @csrf
+                    @method('PUT')
 
                     <!-- Informations générales -->
                     <div class="row">
@@ -366,7 +407,7 @@
                             <div class="form-group">
                                 <label for="titre" class="form-label required">Titre de l'événement</label>
                                 <input type="text" class="form-control @error('titre') is-invalid @enderror"
-                                       id="titre" name="titre" value="{{ old('titre') }}"
+                                       id="titre" name="titre" value="{{ old('titre', $event->titre) }}"
                                        placeholder="Ex: Maintenance pompe station A" required>
                                 @error('titre')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -380,7 +421,8 @@
                                 <select class="form-select @error('id_projet') is-invalid @enderror" id="id_projet" name="id_projet">
                                     <option value="">Aucun projet</option>
                                     @foreach($projets as $project)
-                                        <option value="{{ $project->id }}" {{ old('id_projet') == $project->id ? 'selected' : '' }}>
+                                        <option value="{{ $project->id }}" 
+                                                {{ old('id_projet', $event->id_projet) == $project->id ? 'selected' : '' }}>
                                             {{ $project->nom }}
                                         </option>
                                     @endforeach
@@ -397,7 +439,7 @@
                         <label for="description" class="form-label required">Description</label>
                         <textarea class="form-control @error('description') is-invalid @enderror"
                                   id="description" name="description" rows="4" required
-                                  placeholder="Décrivez l'objectif et les détails de cet événement...">{{ old('description') }}</textarea>
+                                  placeholder="Décrivez l'objectif et les détails de cet événement...">{{ old('description', $event->description) }}</textarea>
                         @error('description')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -408,10 +450,10 @@
                         <label class="form-label required">Type d'événement</label>
                         <div class="event-type-grid">
                             @foreach($typesOptions as $key => $label)
-                                <div class="event-type-card {{ old('type') === $key ? 'selected' : '' }}"
+                                <div class="event-type-card {{ old('type', $event->type) === $key ? 'selected' : '' }}"
                                      onclick="selectEventType('{{ $key }}')">
                                     <input type="radio" name="type" value="{{ $key }}" id="type_{{ $key }}"
-                                           {{ old('type') === $key ? 'checked' : '' }} required>
+                                           {{ old('type', $event->type) === $key ? 'checked' : '' }} required>
                                     <i class="event-type-icon {{ match($key) {
                                         'intervention' => 'bi-tools',
                                         'reunion' => 'bi-people',
@@ -431,15 +473,33 @@
                         @enderror
                     </div>
 
+                    <!-- Statut -->
+                    <div class="form-group">
+                        <label class="form-label required">Statut</label>
+                        <div class="status-grid">
+                            @foreach($statutsOptions as $key => $label)
+                                <div class="status-option {{ old('statut', $event->statut) === $key ? 'selected' : '' }}"
+                                     onclick="selectStatus('{{ $key }}')">
+                                    <input type="radio" name="statut" value="{{ $key }}" id="statut_{{ $key }}"
+                                           {{ old('statut', $event->statut) === $key ? 'checked' : '' }} required>
+                                    <div class="fw-semibold">{{ $label }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+                        @error('statut')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <!-- Priorité -->
                     <div class="form-group">
                         <label class="form-label required">Priorité</label>
                         <div class="priority-grid">
                             @foreach($prioritesOptions as $key => $label)
-                                <div class="priority-option priority-{{ $key }} {{ old('priorite') === $key ? 'selected' : '' }}"
+                                <div class="priority-option priority-{{ $key }} {{ old('priorite', $event->priorite) === $key ? 'selected' : '' }}"
                                      onclick="selectPriority('{{ $key }}')">
                                     <input type="radio" name="priorite" value="{{ $key }}" id="priorite_{{ $key }}"
-                                           {{ old('priorite') === $key ? 'checked' : '' }} required>
+                                           {{ old('priorite', $event->priorite) === $key ? 'checked' : '' }} required>
                                     <div class="fw-semibold">{{ $label }}</div>
                                     <small>{{ match($key) {
                                         'normale' => 'Tâches courantes',
@@ -461,7 +521,8 @@
                             <div class="form-group">
                                 <label for="date_debut" class="form-label required">Date et heure de début</label>
                                 <input type="datetime-local" class="form-control @error('date_debut') is-invalid @enderror"
-                                       id="date_debut" name="date_debut" value="{{ old('date_debut') }}" required>
+                                       id="date_debut" name="date_debut" 
+                                       value="{{ old('date_debut', $event->date_debut->format('Y-m-d\TH:i')) }}" required>
                                 @error('date_debut')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -472,7 +533,8 @@
                             <div class="form-group">
                                 <label for="date_fin" class="form-label required">Date et heure de fin</label>
                                 <input type="datetime-local" class="form-control @error('date_fin') is-invalid @enderror"
-                                       id="date_fin" name="date_fin" value="{{ old('date_fin') }}" required>
+                                       id="date_fin" name="date_fin" 
+                                       value="{{ old('date_fin', $event->date_fin->format('Y-m-d\TH:i')) }}" required>
                                 @error('date_fin')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -485,7 +547,7 @@
                             <div class="form-group">
                                 <label for="lieu" class="form-label required">Lieu</label>
                                 <input type="text" class="form-control @error('lieu') is-invalid @enderror"
-                                       id="lieu" name="lieu" value="{{ old('lieu') }}"
+                                       id="lieu" name="lieu" value="{{ old('lieu', $event->lieu) }}"
                                        placeholder="Ex: Station pompage P12, secteur Tadla-Nord" required>
                                 @error('lieu')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -497,7 +559,8 @@
                             <div class="form-group">
                                 <label for="coordonnees_gps" class="form-label">Coordonnées GPS</label>
                                 <input type="text" class="form-control @error('coordonnees_gps') is-invalid @enderror"
-                                       id="coordonnees_gps" name="coordonnees_gps" value="{{ old('coordonnees_gps') }}"
+                                       id="coordonnees_gps" name="coordonnees_gps" 
+                                       value="{{ old('coordonnees_gps', $event->coordonnees_gps) }}"
                                        placeholder="32.123456, -6.789012">
                                 @error('coordonnees_gps')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -511,15 +574,8 @@
                         <label class="form-label">Participants</label>
                         <div class="participants-section">
                             <div class="participants-header">
-                                <h6 class="mb-0">Sélectionner les participants</h6>
-                                <div class="selection-actions">
-                                    <button type="button" class="btn btn-sm" onclick="selectAllTechnicians()">
-                                        Tous les techniciens
-                                    </button>
-                                    <button type="button" class="btn btn-sm" onclick="clearSelection()">
-                                        Désélectionner tout
-                                    </button>
-                                </div>
+                                <h6 class="mb-0">Gérer les participants</h6>
+                                <small class="text-muted">{{ $event->participants->count() }} participant(s) actuellement</small>
                             </div>
 
                             <div class="participants-search">
@@ -529,12 +585,15 @@
                             </div>
 
                             <div class="participants-list">
+                                @php
+                                    $currentParticipants = $event->participants->pluck('id_utilisateur')->toArray();
+                                @endphp
                                 @foreach($utilisateurs as $utilisateur)
                                     <div class="user-item" data-name="{{ strtolower($utilisateur->nom . ' ' . $utilisateur->prenom) }}"
                                          data-role="{{ strtolower($utilisateur->role_libelle) }}">
                                         <input type="checkbox" name="participants[]" value="{{ $utilisateur->id }}"
                                                id="participant_{{ $utilisateur->id }}"
-                                               {{ in_array($utilisateur->id, old('participants', [])) ? 'checked' : '' }}>
+                                               {{ in_array($utilisateur->id, $currentParticipants) ? 'checked' : '' }}>
 
                                         <div class="user-avatar">
                                             {{ substr($utilisateur->prenom, 0, 1) }}{{ substr($utilisateur->nom, 0, 1) }}
@@ -545,9 +604,9 @@
                                             <div class="user-role">{{ $utilisateur->email }}</div>
                                         </div>
 
-                                        <div class="participant-role role-{{ str_replace('_', '-', $utilisateur->role) }}">
-                                            {{ $utilisateur->role_libelle }}
-                                        </div>
+                                        @if($utilisateur->id === $event->id_organisateur)
+                                            <span class="badge bg-warning">Organisateur</span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -559,15 +618,45 @@
 
                     <!-- Boutons -->
                     <div class="action-buttons">
-                        <a href="{{ route('events.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('events.show', $event) }}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left me-2"></i>
                             Annuler
                         </a>
-                        <button type="submit" class="btn btn-action">
-                            <i class="bi bi-calendar-plus me-2"></i>
-                            Créer l'Événement
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>
+                            Mettre à jour
                         </button>
+                        @if(auth()->user()->role === 'admin')
+                            <button type="button" class="btn btn-danger" onclick="confirmDelete({{ $event->id }})">
+                                <i class="bi bi-trash me-2"></i>
+                                Supprimer
+                            </button>
+                        @endif
                     </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cet événement ?</p>
+                <p class="text-danger">Cette action supprimera définitivement l'événement et toutes ses participations.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
                 </form>
             </div>
         </div>
@@ -579,30 +668,29 @@
 <script>
 // Sélection du type d'événement
 function selectEventType(type) {
-    // Désélectionner tous les cards
     document.querySelectorAll('.event-type-card').forEach(card => {
         card.classList.remove('selected');
     });
-
-    // Sélectionner le card cliqué
     event.target.closest('.event-type-card').classList.add('selected');
-
-    // Cocher le radio button
     document.querySelector(`input[name="type"][value="${type}"]`).checked = true;
 }
 
 // Sélection de la priorité
 function selectPriority(priority) {
-    // Désélectionner toutes les options
     document.querySelectorAll('.priority-option').forEach(option => {
         option.classList.remove('selected');
     });
-
-    // Sélectionner l'option cliquée
     event.target.closest('.priority-option').classList.add('selected');
-
-    // Cocher le radio button
     document.querySelector(`input[name="priorite"][value="${priority}"]`).checked = true;
+}
+
+// Sélection du statut
+function selectStatus(status) {
+    document.querySelectorAll('.status-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    event.target.closest('.status-option').classList.add('selected');
+    document.querySelector(`input[name="statut"][value="${status}"]`).checked = true;
 }
 
 // Recherche de participants
@@ -622,24 +710,11 @@ document.getElementById('participantSearch').addEventListener('input', function(
     });
 });
 
-// Sélectionner tous les techniciens
-function selectAllTechnicians() {
-    const checkboxes = document.querySelectorAll('.user-item input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-        const userItem = checkbox.closest('.user-item');
-        const roleText = userItem.querySelector('.participant-role').textContent.toLowerCase();
-        if (roleText.includes('technicien')) {
-            checkbox.checked = true;
-        }
-    });
-}
-
-// Désélectionner tout
-function clearSelection() {
-    const checkboxes = document.querySelectorAll('input[name="participants[]"]');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = false;
-    });
+// Confirmation de suppression
+function confirmDelete(eventId) {
+    document.getElementById('deleteForm').action = '/events/' + eventId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
 }
 
 // Validation des dates
@@ -648,10 +723,8 @@ document.getElementById('date_debut').addEventListener('change', function() {
     const dateFinInput = document.getElementById('date_fin');
 
     if (dateDebut) {
-        // Mettre à jour la date de fin minimale
         dateFinInput.min = dateDebut;
 
-        // Si la date de fin est antérieure, l'ajuster automatiquement
         if (dateFinInput.value && new Date(dateFinInput.value) <= new Date(dateDebut)) {
             const newEndDate = new Date(dateDebut);
             newEndDate.setHours(newEndDate.getHours() + 2);
@@ -660,96 +733,23 @@ document.getElementById('date_debut').addEventListener('change', function() {
     }
 });
 
-// Validation du formulaire
-document.getElementById('eventForm').addEventListener('submit', function(e) {
-    let errors = [];
-
-    // Vérifier les champs obligatoires
-    const titre = document.getElementById('titre').value.trim();
-    const description = document.getElementById('description').value.trim();
-    const dateDebut = document.getElementById('date_debut').value;
-    const dateFin = document.getElementById('date_fin').value;
-    const lieu = document.getElementById('lieu').value.trim();
-    const type = document.querySelector('input[name="type"]:checked');
-    const priorite = document.querySelector('input[name="priorite"]:checked');
-
-    if (!titre) errors.push('Le titre est obligatoire');
-    if (!description) errors.push('La description est obligatoire');
-    if (!dateDebut) errors.push('La date de début est obligatoire');
-    if (!dateFin) errors.push('La date de fin est obligatoire');
-    if (!lieu) errors.push('Le lieu est obligatoire');
-    if (!type) errors.push('Le type d\'événement est obligatoire');
-    if (!priorite) errors.push('La priorité est obligatoire');
-
-    // Vérifier les dates
-    if (dateDebut && dateFin) {
-        const debut = new Date(dateDebut);
-        const fin = new Date(dateFin);
-        const maintenant = new Date();
-
-        if (debut <= maintenant) {
-            errors.push('La date de début doit être dans le futur');
-        }
-
-        if (fin <= debut) {
-            errors.push('La date de fin doit être postérieure à la date de début');
-        }
-
-        // Vérifier que l'événement ne dure pas plus de 7 jours
-        const diffDays = (fin - debut) / (1000 * 60 * 60 * 24);
-        if (diffDays > 7) {
-            errors.push('Un événement ne peut pas durer plus de 7 jours');
-        }
-    }
-
-    // Afficher les erreurs si il y en a
-    if (errors.length > 0) {
-        e.preventDefault();
-        alert('Erreurs de validation:\n\n' + errors.join('\n'));
-        return false;
-    }
-
-    // Confirmer la création
-    const participants = document.querySelectorAll('input[name="participants[]"]:checked');
-    const message = `Voulez-vous créer cet événement ?\n\n` +
-                   `Titre: ${titre}\n` +
-                   `Type: ${type.nextElementSibling.nextElementSibling.textContent}\n` +
-                   `Date: ${new Date(dateDebut).toLocaleDateString('fr-FR')}\n` +
-                   `Participants: ${participants.length} personne(s)`;
-
-    if (!confirm(message)) {
-        e.preventDefault();
-        return false;
-    }
-
-    // Désactiver le bouton pour éviter les doubles soumissions
-    const submitBtn = this.querySelector('button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Création en cours...';
-    }
-
-    return true;
-});
-
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', function() {
-    // Sélectionner automatiquement le type si déjà choisi
+    // Sélectionner automatiquement les options déjà choisies
     const selectedType = document.querySelector('input[name="type"]:checked');
     if (selectedType) {
         selectedType.closest('.event-type-card').classList.add('selected');
     }
 
-    // Sélectionner automatiquement la priorité si déjà choisie
     const selectedPriority = document.querySelector('input[name="priorite"]:checked');
     if (selectedPriority) {
         selectedPriority.closest('.priority-option').classList.add('selected');
     }
 
-    // Configurer les dates minimum
-    const now = new Date();
-    const minDateTime = now.toISOString().slice(0, 16);
-    document.getElementById('date_debut').setAttribute('min', minDateTime);
+    const selectedStatus = document.querySelector('input[name="statut"]:checked');
+    if (selectedStatus) {
+        selectedStatus.closest('.status-option').classList.add('selected');
+    }
 });
 </script>
 @endpush

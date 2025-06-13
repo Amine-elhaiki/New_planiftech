@@ -23,6 +23,7 @@ class User extends Authenticatable
         'statut',
         'telephone',
         'date_creation',
+        'date_modification',
         'derniere_connexion',
     ];
 
@@ -55,6 +56,11 @@ class User extends Authenticatable
     public function scopeTechnicien($query)
     {
         return $query->where('role', 'technicien');
+    }
+
+    public function scopeChefProjet($query)
+    {
+        return $query->where('role', 'chef_projet');
     }
 
     // Relations
@@ -138,6 +144,11 @@ class User extends Authenticatable
     public function isTechnicien()
     {
         return $this->role === 'technicien';
+    }
+
+    public function isChefProjet()
+    {
+        return $this->role === 'chef_projet';
     }
 
     public function updateProfile(array $data)
@@ -303,6 +314,17 @@ class User extends Authenticatable
             ];
         }
 
+        if ($this->isChefProjet()) {
+            return [
+                'gerer_mes_projets',
+                'gerer_taches_projet',
+                'creer_evenements',
+                'voir_rapports_equipe',
+                'assigner_taches',
+                'gerer_equipe_projet',
+            ];
+        }
+
         return [
             'gerer_mes_taches',
             'creer_evenements',
@@ -314,5 +336,44 @@ class User extends Authenticatable
     public function hasPermission($permission)
     {
         return in_array($permission, $this->getPermissions());
+    }
+
+    /**
+     * Obtenir le libellé du rôle
+     */
+    public function getRoleLibelleAttribute()
+    {
+        return match($this->role) {
+            'admin' => 'Administrateur',
+            'chef_projet' => 'Chef de Projet',
+            'technicien' => 'Technicien',
+            default => ucfirst($this->role)
+        };
+    }
+
+    /**
+     * Obtenir l'icône du rôle
+     */
+    public function getRoleIconAttribute()
+    {
+        return match($this->role) {
+            'admin' => 'bi-shield-check',
+            'chef_projet' => 'bi-diagram-2',
+            'technicien' => 'bi-tools',
+            default => 'bi-person'
+        };
+    }
+
+    /**
+     * Obtenir la couleur du rôle
+     */
+    public function getRoleColorAttribute()
+    {
+        return match($this->role) {
+            'admin' => 'primary',
+            'chef_projet' => 'warning',
+            'technicien' => 'success',
+            default => 'secondary'
+        };
     }
 }

@@ -1,31 +1,29 @@
-{{--
-==================================================
-FICHIER : resources/views/reports/index.blade.php
-DESCRIPTION : Gestion des rapports d'intervention
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
+{{-- filepath: c:\les_cours\Laravel\Projet-Amine\New_planiftech\resources\views\reports\index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Gestion des rapports')
+@section('title', 'Rapports - PlanifTech ORMVAT')
 
 @push('styles')
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
     body {
         background-color: #f7fafc;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 0;
     }
 
     .app-layout {
         display: flex;
         min-height: 100vh;
+        background-color: #f7fafc;
     }
 
-    /* Sidebar avec thème orange pour les rapports */
+    /* ============================================
+       SIDEBAR STYLES - Adaptatif selon le rôle
+       ============================================ */
     .sidebar {
         width: 280px;
-        background: linear-gradient(180deg, #ea580c 0%, #f97316 50%, #fb923c 100%);
         color: white;
         padding: 0;
         display: flex;
@@ -35,7 +33,15 @@ AUTEUR : PlanifTech ORMVAT
         left: 0;
         top: 0;
         z-index: 1000;
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .sidebar.admin {
+        background: linear-gradient(180deg, #4c51bf 0%, #667eea 50%, #764ba2 100%);
+    }
+
+    .sidebar.technicien {
+        background: linear-gradient(180deg, #047857 0%, #059669 50%, #10b981 100%);
     }
 
     .sidebar-header {
@@ -53,6 +59,14 @@ AUTEUR : PlanifTech ORMVAT
     .sidebar-logo i {
         font-size: 2.2rem;
         margin-right: 0.75rem;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .sidebar-logo i.admin {
+        color: #e0e7ff;
+    }
+
+    .sidebar-logo i.technicien {
         color: #fbbf24;
     }
 
@@ -61,6 +75,7 @@ AUTEUR : PlanifTech ORMVAT
         font-weight: 700;
         margin: 0;
         color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     .sidebar-subtitle {
@@ -69,8 +84,167 @@ AUTEUR : PlanifTech ORMVAT
         margin: 0;
         text-transform: uppercase;
         letter-spacing: 1px;
+        font-weight: 500;
     }
 
+    .sidebar-user {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        margin-top: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .user-avatar-sidebar {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        margin-right: 0.75rem;
+        font-size: 1rem;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .user-avatar-sidebar.admin {
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        color: #3730a3;
+    }
+
+    .user-avatar-sidebar.technicien {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        color: white;
+    }
+
+    .user-info-sidebar h4 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+        margin: 0 0 0.125rem 0;
+    }
+
+    .user-info-sidebar p {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        padding: 1rem 0;
+        overflow-y: auto;
+    }
+
+    .nav-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .nav-section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .nav-item {
+        display: block;
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        padding: 0.875rem 1.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        position: relative;
+    }
+
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        text-decoration: none;
+        transform: translateX(5px);
+    }
+
+    .nav-item.active {
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+        box-shadow: inset 0 0 20px rgba(255,255,255,0.1);
+    }
+
+    .nav-item.active.admin {
+        border-right: 4px solid #e0e7ff;
+    }
+
+    .nav-item.active.technicien {
+        border-right: 4px solid #fbbf24;
+    }
+
+    .nav-item i {
+        width: 1.5rem;
+        margin-right: 0.75rem;
+        font-size: 1.1rem;
+        text-align: center;
+    }
+
+    .nav-badge {
+        background: #dc2626;
+        color: white;
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-left: auto;
+    }
+
+    .sidebar-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        padding: 0.875rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        width: 100%;
+        justify-content: center;
+    }
+
+    .logout-btn:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: white;
+        text-decoration: none;
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .logout-btn i {
+        margin-right: 0.5rem;
+    }
+
+    /* ============================================
+       MAIN CONTENT
+       ============================================ */
     .main-content {
         margin-left: 280px;
         padding: 1.5rem;
@@ -79,292 +253,496 @@ AUTEUR : PlanifTech ORMVAT
         width: calc(100% - 280px);
     }
 
-    .page-header {
-        background: white;
-        border-radius: 12px;
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* Hero Section */
+    .hero-section {
+        color: white;
+        border-radius: 20px;
         padding: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e7eb;
+        position: relative;
+        overflow: hidden;
     }
 
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
+    .hero-section.admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
 
-    .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e7eb;
+    .hero-section.technicien {
+        background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+        box-shadow: 0 10px 30px rgba(4, 120, 87, 0.3);
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 100%;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+        animation: float 20s infinite linear;
+    }
+
+    @keyframes float {
+        0% { transform: translateX(0) translateY(0); }
+        100% { transform: translateX(-100px) translateY(-100px); }
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-stat {
         text-align: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 0.5rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .hero-stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        display: block;
+    }
+
+    .hero-stat-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        margin-top: 0.25rem;
+    }
+
+    /* Report Cards */
+    .report-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .report-card-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        position: relative;
+    }
+
+    .report-status-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-en_attente {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-valide {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-rejete {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .report-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        margin-right: 6rem;
+        color: #1f2937;
+    }
+
+    .report-description {
+        color: #6b7280;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+
+    .report-info {
+        padding: 1.5rem;
+        background: #f9fafb;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #4b5563;
+    }
+
+    .report-footer {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        background: #f3f4f6;
+        color: #6b7280;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        margin-left: 0.5rem;
+    }
+
+    .action-btn:hover {
+        background: #374151;
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .action-btn.primary.admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .action-btn.primary.technicien {
+        background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+        color: white;
+    }
+
+    .action-btn.primary:hover {
+        color: white;
+    }
+
+    /* Sidebar Filters */
+    .sidebar-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        margin-bottom: 1rem;
         transition: all 0.3s ease;
     }
 
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    .filter-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .stat-icon {
-        width: 3rem;
-        height: 3rem;
+    .filter-input:focus.admin {
+        border-color: #667eea;
+    }
+
+    .filter-input:focus.technicien {
+        border-color: #10b981;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-light {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-light:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    .btn-primary.admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .btn-primary.technicien {
+        background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+        box-shadow: 0 4px 14px rgba(4, 120, 87, 0.4);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 1rem;
-        font-size: 1.5rem;
-    }
-
-    .stat-icon.total { background: linear-gradient(135deg, #ea580c, #dc2626); color: white; }
-    .stat-icon.pending { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
-    .stat-icon.validated { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-    .stat-icon.monthly { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-
-    .reports-table {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e7eb;
-        overflow: hidden;
-    }
-
-    .table-header {
-        background: #f9fafb;
-        padding: 1.5rem;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .table-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #1f2937;
-        margin: 0;
-    }
-
-    .filters-row {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .search-box {
-        position: relative;
-        min-width: 250px;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 0.5rem 1rem 0.5rem 2.5rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.875rem;
-    }
-
-    .search-icon {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-    }
-
-    .filter-select {
-        padding: 0.5rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        min-width: 150px;
-    }
-
-    .reports-table table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .reports-table th {
-        text-align: left;
-        padding: 1rem 1.5rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #6b7280;
-        background-color: #f9fafb;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .reports-table td {
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #f3f4f6;
-        vertical-align: middle;
-    }
-
-    .reports-table tr:hover {
-        background-color: #f9fafb;
-    }
-
-    .report-info {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-    }
-
-    .report-icon {
-        width: 2.5rem;
-        height: 2.5rem;
-        border-radius: 8px;
-        background: linear-gradient(135deg, #ea580c, #f97316);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        margin: 0 auto 1.5rem;
         color: white;
-        font-size: 1rem;
-        flex-shrink: 0;
+        font-size: 2rem;
     }
 
-    .report-details h4 {
-        font-weight: 600;
-        color: #1f2937;
-        margin: 0 0 0.25rem 0;
-        font-size: 0.875rem;
+    .empty-icon.admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
-    .report-details p {
-        font-size: 0.75rem;
-        color: #6b7280;
-        margin: 0;
+    .empty-icon.technicien {
+        background: linear-gradient(135deg, #047857 0%, #10b981 100%);
     }
 
-    .type-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
+    /* FAB */
+    .fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 60px;
+        height: 60px;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 1000;
     }
 
-    .type-maintenance { background: #fef3c7; color: #92400e; }
-    .type-inspection { background: #dbeafe; color: #1e40af; }
-    .type-reparation { background: #fee2e2; color: #991b1b; }
-    .type-controle { background: #dcfce7; color: #166534; }
-
-    .status-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: lowercase;
+    .fab.admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
     }
 
-    .status-en_attente { background: #fef3c7; color: #92400e; }
-    .status-en_revision { background: #dbeafe; color: #1e40af; }
-    .status-valide { background: #dcfce7; color: #166534; }
-    .status-rejete { background: #fee2e2; color: #991b1b; }
-
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
+    .fab.technicien {
+        background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+        box-shadow: 0 10px 25px rgba(4, 120, 87, 0.3);
     }
 
-    .btn-action {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        transition: all 0.2s ease;
+    .fab:hover {
+        transform: scale(1.1);
     }
 
-    .btn-view { background: #eff6ff; color: #1e40af; }
-    .btn-edit { background: #fef3c7; color: #92400e; }
-    .btn-pdf { background: #fee2e2; color: #991b1b; }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #6b7280;
+    .fab.admin:hover {
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
     }
 
-    .empty-icon {
-        font-size: 4rem;
-        color: #d1d5db;
-        margin-bottom: 1rem;
+    .fab.technicien:hover {
+        box-shadow: 0 15px 35px rgba(4, 120, 87, 0.4);
+    }
+
+    /* Mobile */
+    .mobile-toggle {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .main-content {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .mobile-toggle {
+            display: block;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .mobile-toggle.admin {
+            background: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .mobile-toggle.technicien {
+            background: #10b981;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .hero-section {
+            padding: 1.5rem;
+        }
+
+        .report-info {
+            grid-template-columns: 1fr;
+        }
+
+        .report-footer {
+            flex-direction: column;
+            gap: 1rem;
+        }
     }
 </style>
 @endpush
 
 @section('content')
 <div class="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
+    @php
+        $userRole = auth()->user()->role;
+        $roleClass = $isAdmin ? 'admin' : 'technicien';
+    @endphp
+
+    <!-- Mobile Toggle Button -->
+    <button class="mobile-toggle {{ $roleClass }}" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Sidebar Adaptative -->
+    <aside class="sidebar {{ $roleClass }}" id="sidebar">
+        <!-- Sidebar Header -->
         <div class="sidebar-header">
             <div class="sidebar-logo">
-                <i class="bi bi-file-earmark-text"></i>
+                <i class="bi bi-water {{ $roleClass }}"></i>
                 <div>
-                    <h1 class="sidebar-brand">Rapports</h1>
+                    <h1 class="sidebar-brand">PlanifTech</h1>
                     <p class="sidebar-subtitle">ORMVAT</p>
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar-sidebar {{ $roleClass }}">
+                    {{ substr(auth()->user()->prenom, 0, 1) }}{{ substr(auth()->user()->nom, 0, 1) }}
+                </div>
+                <div class="user-info-sidebar">
+                    <h4>{{ auth()->user()->nom_complet }}</h4>
+                    <p>{{ $isAdmin ? 'Administrateur' : 'Technicien' }}</p>
                 </div>
             </div>
         </div>
 
-        <nav style="flex: 1; padding: 1rem 0;">
-            <div style="margin-bottom: 1.5rem;">
-                <div style="font-size: 0.7rem; font-weight: 700; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 1px; padding: 0 1.5rem; margin-bottom: 0.75rem;">Navigation</div>
-                <a href="{{ route('dashboard') }}" style="display: block; color: rgba(255, 255, 255, 0.85); text-decoration: none; padding: 0.875rem 1.5rem; font-size: 0.875rem; font-weight: 500;">
-                    <i class="bi bi-speedometer2" style="width: 1.5rem; margin-right: 0.75rem;"></i>
+        <!-- Navigation -->
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Navigation</div>
+                <a href="{{ route('dashboard') }}" class="nav-item">
+                    <i class="bi bi-house"></i>
                     Tableau de bord
                 </a>
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-                <div style="font-size: 0.7rem; font-weight: 700; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 1px; padding: 0 1.5rem; margin-bottom: 0.75rem;">Rapports</div>
-                <a href="{{ route('reports.index') }}" style="display: block; color: white; text-decoration: none; padding: 0.875rem 1.5rem; font-size: 0.875rem; font-weight: 500; background: rgba(255, 255, 255, 0.18); border-right: 4px solid #fbbf24;">
-                    <i class="bi bi-file-text" style="width: 1.5rem; margin-right: 0.75rem;"></i>
-                    Mes rapports
-                </a>
-                <a href="{{ route('reports.create') }}" style="display: block; color: rgba(255, 255, 255, 0.85); text-decoration: none; padding: 0.875rem 1.5rem; font-size: 0.875rem; font-weight: 500;">
-                    <i class="bi bi-plus-circle" style="width: 1.5rem; margin-right: 0.75rem;"></i>
-                    Nouveau rapport
-                </a>
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-                <div style="font-size: 0.7rem; font-weight: 700; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 1px; padding: 0 1.5rem; margin-bottom: 0.75rem;">Modules</div>
-                <a href="{{ route('tasks.index') }}" style="display: block; color: rgba(255, 255, 255, 0.85); text-decoration: none; padding: 0.875rem 1.5rem; font-size: 0.875rem; font-weight: 500;">
-                    <i class="bi bi-list-check" style="width: 1.5rem; margin-right: 0.75rem;"></i>
-                    Tâches
-                </a>
-                <a href="{{ route('events.index') }}" style="display: block; color: rgba(255, 255, 255, 0.85); text-decoration: none; padding: 0.875rem 1.5rem; font-size: 0.875rem; font-weight: 500;">
-                    <i class="bi bi-calendar-event" style="width: 1.5rem; margin-right: 0.75rem;"></i>
+                @if($isAdmin)
+                    <a href="{{ route('tasks.index') }}" class="nav-item">
+                        <i class="bi bi-list-check"></i>
+                        Gestion des Tâches
+                    </a>
+                @else
+                    <a href="{{ route('tasks.index') }}" class="nav-item">
+                        <i class="bi bi-list-check"></i>
+                        Mes Tâches
+                    </a>
+                @endif
+                <a href="{{ route('events.index') }}" class="nav-item">
+                    <i class="bi bi-calendar-event"></i>
                     Événements
                 </a>
-                <a href="{{ route('projects.index') }}" style="display: block; color: rgba(255, 255, 255, 0.85); text-decoration: none; padding: 0.875rem 1.5rem; font-size: 0.875rem; font-weight: 500;">
-                    <i class="bi bi-folder" style="width: 1.5rem; margin-right: 0.75rem;"></i>
+                <a href="{{ route('reports.index') }}" class="nav-item active {{ $roleClass }}">
+                    <i class="bi bi-file-text"></i>
+                    {{ $isAdmin ? 'Tous les Rapports' : 'Mes Rapports' }}
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Gestion</div>
+                <a href="{{ route('projects.index') }}" class="nav-item">
+                    <i class="bi bi-folder"></i>
                     Projets
+                </a>
+                <a href="{{ route('users.index') }}" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    {{ $isAdmin ? 'Gestion Utilisateurs' : 'Équipe' }}
+                </a>
+            </div>
+
+            @if($isAdmin)
+            <div class="nav-section">
+                <div class="nav-section-title">Administration</div>
+                <a href="{{ route('admin.logs') }}" class="nav-item">
+                    <i class="bi bi-journal-text"></i>
+                    Journaux d'activité
+                </a>
+            </div>
+            @endif
+
+            <div class="nav-section">
+                <div class="nav-section-title">Compte</div>
+                <a href="{{ route('profile.edit') }}" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    Mon Profil
                 </a>
             </div>
         </nav>
 
-        <div style="padding: 1rem 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-            <form method="POST" action="{{ route('logout') }}" style="width: 100%;">
+        <!-- Sidebar Footer -->
+        <div class="sidebar-footer">
+            <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" style="display: flex; align-items: center; color: rgba(255, 255, 255, 0.85); text-decoration: none; padding: 0.875rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); width: 100%; justify-content: center;">
-                    <i class="bi bi-box-arrow-right" style="margin-right: 0.5rem;"></i>
+                <button type="submit" class="logout-btn">
+                    <i class="bi bi-box-arrow-right"></i>
                     Déconnexion
                 </button>
             </form>
@@ -373,1058 +751,336 @@ AUTEUR : PlanifTech ORMVAT
 
     <!-- Main Content -->
     <main class="main-content">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 style="font-size: 2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0;">
-                        Gestion des Rapports
-                    </h1>
-                    <p style="color: #6b7280; margin: 0;">
-                        Consultez et gérez tous les rapports d'intervention
-                    </p>
-                </div>
-                <a href="{{ route('reports.create') }}" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 500; background: linear-gradient(135deg, #ea580c, #dc2626); color: white; text-decoration: none;">
-                    <i class="bi bi-plus-lg me-2"></i>
-                    Nouveau Rapport
-                </a>
-            </div>
-        </div>
-
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon total">
-                    <i class="bi bi-file-text"></i>
-                </div>
-                <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">{{ $stats['total'] ?? 47 }}</div>
-                <div style="font-size: 0.875rem; color: #6b7280; font-weight: 500; text-transform: uppercase;">Total Rapports</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon pending">
-                    <i class="bi bi-clock"></i>
-                </div>
-                <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">{{ $stats['en_attente'] ?? 8 }}</div>
-                <div style="font-size: 0.875rem; color: #6b7280; font-weight: 500; text-transform: uppercase;">En Attente</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon validated">
-                    <i class="bi bi-check-circle"></i>
-                </div>
-                <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">{{ $stats['valide'] ?? 35 }}</div>
-                <div style="font-size: 0.875rem; color: #6b7280; font-weight: 500; text-transform: uppercase;">Validés</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon monthly">
-                    <i class="bi bi-calendar-month"></i>
-                </div>
-                <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">{{ $stats['ce_mois'] ?? 12 }}</div>
-                <div style="font-size: 0.875rem; color: #6b7280; font-weight: 500; text-transform: uppercase;">Ce Mois</div>
-            </div>
-        </div>
-
-        <!-- Reports Table -->
-        <div class="reports-table">
-            <div class="table-header">
-                <h3 class="table-title">Liste des Rapports</h3>
-
-                <div class="filters-row">
-                    <div class="search-box">
-                        <i class="bi bi-search search-icon"></i>
-                        <input type="text" class="search-input" placeholder="Rechercher un rapport..." id="searchInput">
+        <div class="dashboard-container">
+            <!-- Hero Section -->
+            <div class="hero-section {{ $roleClass }}">
+                <div class="hero-content">
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div>
+                            <h1 class="display-5 mb-2">
+                                <i class="bi bi-file-text me-3"></i>
+                                {{ $isAdmin ? 'Gestion des Rapports' : 'Mes Rapports' }}
+                            </h1>
+                            <p class="lead mb-0">
+                                {{ $isAdmin ? 'Vue d\'ensemble de tous les rapports d\'intervention' : 'Gérez vos rapports d\'intervention' }}
+                            </p>
+                        </div>
+                        <a href="{{ route('reports.create') }}" class="btn btn-light btn-lg">
+                            <i class="bi bi-plus-lg me-2"></i>
+                            Nouveau Rapport
+                        </a>
                     </div>
 
-                    <select class="filter-select" id="typeFilter">
-                        <option value="">Tous les types</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="inspection">Inspection</option>
-                        <option value="reparation">Réparation</option>
-                        <option value="controle">Contrôle</option>
-                    </select>
-
-                    <select class="filter-select" id="statusFilter">
-                        <option value="">Tous les statuts</option>
-                        <option value="en_attente">En attente</option>
-                        <option value="en_revision">En révision</option>
-                        <option value="valide">Validé</option>
-                        <option value="rejete">Rejeté</option>
-                    </select>
+                    <!-- Statistiques -->
+                    <div class="row">
+                        @if($isAdmin)
+                            <div class="col-md-2">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['total'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Total</div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['en_attente'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">En attente</div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['valides'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Validés</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['cette_semaine'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Cette semaine</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['ce_mois'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Ce mois</div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="col-md-3">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['total'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Mes Rapports</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['en_attente'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">En attente</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['valides'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Validés</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="hero-stat">
+                                    <span class="hero-stat-number">{{ $stats['ce_mois'] ?? 0 }}</span>
+                                    <div class="hero-stat-label">Ce mois</div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
-            <div style="overflow-x: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Rapport</th>
-                            <th>Type</th>
-                            <th>Auteur</th>
-                            <th>Statut</th>
-                            <th>Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reportsTableBody">
-                        @forelse($reports ?? [] as $report)
-                        <tr>
-                            <td>
-                                <div class="report-info">
-                                    <div class="report-icon">
-                                        <i class="bi bi-file-earmark-text"></i>
-                                    </div>
-                                    <div class="report-details">
-                                        <h4>{{ $report->titre ?? 'Intervention Station A' }}</h4>
-                                        <p>{{ $report->lieu ?? 'Zone A - Station de pompage principale' }}</p>
-                                    </div>
+            <div class="row">
+                <!-- Main Content -->
+                <div class="col-lg-9">
+                    @if($reports->count() > 0)
+                        @foreach($reports as $report)
+                            <div class="report-card">
+                                <div class="report-card-header">
+                                    <span class="report-status-badge status-{{ $report->statut }}">
+                                        {{ ucfirst(str_replace('_', ' ', $report->statut)) }}
+                                    </span>
+                                    <h3 class="report-title">{{ $report->titre }}</h3>
+                                    <p class="report-description">{{ Str::limit($report->actions, 120) }}</p>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="type-badge type-{{ $report->type_intervention ?? 'maintenance' }}">
-                                    {{ $report->type_intervention_libelle ?? 'Maintenance' }}
-                                </span>
-                            </td>
-                            <td>
-                                <div>
-                                    <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">
-                                        {{ $report->utilisateur->nom_complet ?? auth()->user()->prenom . ' ' . auth()->user()->nom }}
-                                    </div>
-                                    <div style="font-size: 0.75rem; color: #6b7280;">
-                                        {{ ucfirst($report->utilisateur->role ?? auth()->user()->role) }}
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-{{ $report->statut ?? 'valide' }}">
-                                    {{ $report->statut_nom ?? 'Validé' }}
-                                </span>
-                            </td>
-                            <td style="color: #6b7280; font-size: 0.875rem;">
-                                {{ ($report->date_intervention ?? now())->format('d/m/Y') }}
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="{{ route('reports.show', $report->id ?? 1) }}" class="btn-action btn-view">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    @if(auth()->user()->role === 'admin' || ($report->utilisateur_id ?? auth()->id()) === auth()->id())
-                                    <a href="{{ route('reports.edit', $report->id ?? 1) }}" class="btn-action btn-edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    @endif
-                                    <a href="{{ route('reports.pdf', $report->id ?? 1) }}" class="btn-action btn-pdf" target="_blank">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <!-- Exemples de rapports pour la démo -->
-                        <tr>
-                            <td>
-                                <div class="report-info">
-                                    <div class="report-icon">
-                                        <i class="bi bi-file-earmark-text"></i>
-                                    </div>
-                                    <div class="report-details">
-                                        <h4>Maintenance Station A</h4>
-                                        <p>Zone A - Station de pompage principale</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="type-badge type-maintenance">Maintenance</span>
-                            </td>
-                            <td>
-                                <div>
-                                    <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">
-                                        {{ auth()->user()->prenom }} {{ auth()->user()->nom }}
-                                    </div>
-                                    <div style="font-size: 0.75rem; color: #6b7280;">
-                                        {{ ucfirst(auth()->user()->role) }}
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-valide">Validé</span>
-                            </td>
-                            <td style="color: #6b7280; font-size: 0.875rem;">
-                                {{ now()->subDays(2)->format('d/m/Y') }}
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="#" class="btn-action btn-view">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-pdf" target="_blank">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
 
-                        <tr>
-                            <td>
                                 <div class="report-info">
-                                    <div class="report-icon">
-                                        <i class="bi bi-file-earmark-text"></i>
+                                    <div class="info-item">
+                                        <i class="bi bi-calendar3"></i>
+                                        <span>{{ $report->date_intervention->format('d/m/Y') }}</span>
                                     </div>
-                                    <div class="report-details">
-                                        <h4>Inspection Canal B</h4>
-                                        <p>Zone B - Canal secondaire Est</p>
+                                    <div class="info-item">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <span>{{ Str::limit($report->lieu, 30) }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="bi bi-tools"></i>
+                                        <span>{{ $report->type_intervention }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <i class="bi bi-person"></i>
+                                        <span>{{ $report->utilisateur->nom_complet ?? 'Inconnu' }}</span>
                                     </div>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="type-badge type-inspection">Inspection</span>
-                            </td>
-                            <td>
-                                <div>
-                                    <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Ahmed Bennani</div>
-                                    <div style="font-size: 0.75rem; color: #6b7280;">Technicien</div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-en_revision">En révision</span>
-                            </td>
-                            <td style="color: #6b7280; font-size: 0.875rem;">
-                                {{ now()->subDays(1)->format('d/m/Y') }}
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="#" class="btn-action btn-view">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-pdf" target="_blank">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
 
-                        <tr>
-                            <td>
-                                <div class="report-info">
-                                    <div class="report-icon">
-                                        <i class="bi bi-file-earmark-text"></i>
+                                <div class="report-footer">
+                                    <div class="d-flex align-items-center">
+                                        @if($report->piecesJointes->count() > 0)
+                                            <span class="text-muted me-3">
+                                                <i class="bi bi-paperclip me-1"></i>
+                                                {{ $report->piecesJointes->count() }} fichier(s)
+                                            </span>
+                                        @endif
+                                        <span class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>
+                                            {{ $report->date_creation->diffForHumans() }}
+                                        </span>
                                     </div>
-                                    <div class="report-details">
-                                        <h4>Réparation Vanne V-12</h4>
-                                        <p>Zone C - Réseau de distribution</p>
+                                    <div class="d-flex">
+                                        <a href="{{ route('reports.show', $report) }}" class="action-btn primary {{ $roleClass }}" title="Voir">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if($isAdmin || $report->id_utilisateur === auth()->id())
+                                            @if($report->statut === 'en_attente')
+                                                <a href="{{ route('reports.edit', $report) }}" class="action-btn" title="Modifier">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            @endif
+                                            @if($isAdmin)
+                                                <form action="{{ route('reports.destroy', $report) }}" method="POST" class="ms-2">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="action-btn" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce rapport ?')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endif
                                     </div>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="type-badge type-reparation">Réparation</span>
-                            </td>
-                            <td>
-                                <div>
-                                    <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Fatima Khalil</div>
-                                    <div style="font-size: 0.75rem; color: #6b7280;">Technicien</div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-en_attente">En attente</span>
-                            </td>
-                            <td style="color: #6b7280; font-size: 0.875rem;">
-                                {{ now()->format('d/m/Y') }}
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="#" class="btn-action btn-view">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-pdf" target="_blank">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
+                            </div>
+                        @endforeach
 
-                        <tr>
-                            <td>
-                                <div class="report-info">
-                                    <div class="report-icon">
-                                        <i class="bi bi-file-earmark-text"></i>
-                                    </div>
-                                    <div class="report-details">
-                                        <h4>Contrôle Qualité Eau</h4>
-                                        <p>Zone A - Bassin de traitement</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="type-badge type-controle">Contrôle</span>
-                            </td>
-                            <td>
-                                <div>
-                                    <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Omar Rachid</div>
-                                    <div style="font-size: 0.75rem; color: #6b7280;">Technicien</div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-valide">Validé</span>
-                            </td>
-                            <td style="color: #6b7280; font-size: 0.875rem;">
-                                {{ now()->subDays(3)->format('d/m/Y') }}
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="#" class="btn-action btn-view">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="#" class="btn-action btn-pdf" target="_blank">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        <!-- Pagination -->
+                        <div class="d-flex justify-content-center">
+                            {{ $reports->links() }}
+                        </div>
+                    @else
+                        <div class="empty-state">
+                            <div class="empty-icon {{ $roleClass }}">
+                                <i class="bi bi-file-text"></i>
+                            </div>
+                            <h3 class="mb-3">Aucun rapport trouvé</h3>
+                            <p class="text-muted">Vous n'avez pas encore créé de rapports d'intervention.</p>
+                            <a href="{{ route('reports.create') }}" class="btn btn-primary {{ $roleClass }}">
+                                <i class="bi bi-plus-lg me-2"></i>
+                                Créer un nouveau rapport
+                            </a>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Sidebar Filters -->
+                <div class="col-lg-3">
+                    <div class="sidebar-card">
+                        <h5 class="mb-3">Filtres</h5>
+                        <form method="GET" action="{{ route('reports.index') }}">
+                            <input type="text" name="search" class="filter-input {{ $roleClass }}" placeholder="Rechercher par titre ou lieu" value="{{ request('search') }}">
+                            
+                            <select name="statut" class="filter-input {{ $roleClass }}">
+                                <option value="">Tous les statuts</option>
+                                <option value="en_attente" {{ request('statut') === 'en_attente' ? 'selected' : '' }}>En attente</option>
+                                <option value="valide" {{ request('statut') === 'valide' ? 'selected' : '' }}>Validé</option>
+                                <option value="rejete" {{ request('statut') === 'rejete' ? 'selected' : '' }}>Rejeté</option>
+                            </select>
+
+                            @if($isAdmin && isset($users))
+                                <select name="user_id" class="filter-input {{ $roleClass }}">
+                                    <option value="">Tous les utilisateurs</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>
+                                            {{ $user->nom_complet }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @endif
+
+                            <select name="type_intervention" class="filter-input {{ $roleClass }}">
+                                <option value="">Tous les types</option>
+                                @foreach($typesIntervention as $type)
+                                    <option value="{{ $type }}" {{ request('type_intervention') === $type ? 'selected' : '' }}>
+                                        {{ $type }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <button type="submit" class="btn btn-primary {{ $roleClass }} w-100 mb-2">
+                                <i class="bi bi-search me-2"></i>
+                                Rechercher
+                            </button>
+                            <a href="{{ route('reports.index') }}" class="btn btn-light {{ $roleClass }} w-100">
+                                <i class="bi bi-x-lg me-2"></i>
+                                Réinitialiser les filtres
+                            </a>
+                        </form>
+                    </div>
+
+                    <div class="sidebar-card">
+                        <h5 class="mb-3">Statut</h5>
+                        <ul class="list-unstyled">
+                            <li>
+                                <a href="{{ route('reports.index', ['statut' => 'en_attente']) }}" class="nav-item {{ request('statut') === 'en_attente' ? 'active' : '' }}">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    En attente
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('reports.index', ['statut' => 'valide']) }}" class="nav-item {{ request('statut') === 'valide' ? 'active' : '' }}">
+                                    <i class="bi bi-check-circle"></i>
+                                    Validés
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('reports.index', ['statut' => 'rejete']) }}" class="nav-item {{ request('statut') === 'rejete' ? 'active' : '' }}">
+                                    <i class="bi bi-x-circle"></i>
+                                    Rejetés
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('reports.index') }}" class="nav-item {{ !request('statut') ? 'active' : '' }}">
+                                    <i class="bi bi-file-text"></i>
+                                    Tous les rapports
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    @if($isAdmin && isset($users))
+                        <div class="sidebar-card">
+                            <h5 class="mb-3">Rapports par utilisateur</h5>
+                            <ul class="list-unstyled">
+                                @foreach($users as $user)
+                                    <li>
+                                        <a href="{{ route('reports.index', ['user_id' => $user->id]) }}" class="nav-item {{ request('user_id') == $user->id ? 'active' : '' }}">
+                                            <i class="bi bi-person"></i>
+                                            {{ $user->nom_complet }}
+                                            @if($user->reports_count > 0)
+                                                <span class="nav-badge">{{ $user->reports_count }}</span>
+                                            @endif
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     </main>
+
+    <!-- Floating Action Button -->
+    <button class="fab {{ $roleClass }}" onclick="window.location.href='{{ route('reports.create') }}'" title="Créer un rapport">
+        <i class="bi bi-plus-lg"></i>
+    </button>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-// Fonction de recherche
-document.getElementById('searchInput').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#reportsTableBody tr');
-
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
-});
-
-// Filtres
-document.getElementById('typeFilter').addEventListener('change', function() {
-    filterTable();
-});
-
-document.getElementById('statusFilter').addEventListener('change', function() {
-    filterTable();
-});
-
-function filterTable() {
-    const typeFilter = document.getElementById('typeFilter').value;
-    const statusFilter = document.getElementById('statusFilter').value;
-    const rows = document.querySelectorAll('#reportsTableBody tr');
-
-    rows.forEach(row => {
-        let showRow = true;
-
-        if (typeFilter) {
-            const typeBadge = row.querySelector('.type-badge');
-            if (!typeBadge || !typeBadge.classList.contains('type-' + typeFilter)) {
-                showRow = false;
-            }
-        }
-
-        if (statusFilter && showRow) {
-            const statusBadge = row.querySelector('.status-badge');
-            if (!statusBadge || !statusBadge.classList.contains('status-' + statusFilter)) {
-                showRow = false;
-            }
-        }
-
-        row.style.display = showRow ? '' : 'none';
-    });
+// Toggle sidebar pour mobile
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('open');
 }
 
-// Animation des cartes
+// Fermer la sidebar quand on clique ailleurs sur mobile
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.querySelector('.mobile-toggle');
+
+    if (window.innerWidth <= 768) {
+        if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+            sidebar.classList.remove('open');
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
-    const cards = document.querySelectorAll('.stat-card');
-    cards.forEach((card, index) => {
+    // Animation d'entrée pour les cartes
+    const reportCards = document.querySelectorAll('.report-card');
+    reportCards.forEach((card, index) => {
         card.style.opacity = '0';
         card.style.transform = 'translateY(20px)';
-
+        
         setTimeout(() => {
             card.style.transition = 'all 0.6s ease';
             card.style.opacity = '1';
             card.style.transform = 'translateY(0)';
         }, index * 100);
     });
-});
-</script>
-@endpush
 
-{{--
-==================================================
-FICHIER : resources/views/reports/create.blade.php
-DESCRIPTION : Création d'un nouveau rapport d'intervention
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
-@extends('layouts.app')
-
-@section('title', 'Créer un rapport')
-
-@push('styles')
-<style>
-    .main-content {
-        margin-left: 280px;
-        padding: 1.5rem;
-        background-color: #f7fafc;
-        min-height: 100vh;
-        width: calc(100% - 280px);
-    }
-
-    .form-container {
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    .page-header {
-        background: white;
-        border-radius: 12px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e7eb;
-    }
-
-    .form-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e7eb;
-        overflow: hidden;
-    }
-
-    .form-header {
-        background: linear-gradient(135deg, #fed7aa, #fdba74);
-        padding: 1.5rem;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .form-body {
-        padding: 2rem;
-    }
-
-    .form-section {
-        margin-bottom: 2rem;
-    }
-
-    .section-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e5e7eb;
-        display: flex;
-        align-items: center;
-    }
-
-    .section-title i {
-        margin-right: 0.5rem;
-        color: #ea580c;
-    }
-
-    .form-control, .form-select {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-    }
-
-    .form-control:focus, .form-select:focus {
-        outline: none;
-        border-color: #ea580c;
-        box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
-    }
-
-    .file-upload {
-        border: 2px dashed #d1d5db;
-        border-radius: 8px;
-        padding: 2rem;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .file-upload:hover {
-        border-color: #ea580c;
-        background-color: #fef7f2;
-    }
-
-    .file-upload.dragover {
-        border-color: #ea580c;
-        background-color: #fef7f2;
-    }
-
-    .uploaded-files {
-        margin-top: 1rem;
-    }
-
-    .file-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem;
-        background: #f9fafb;
-        border-radius: 6px;
-        margin-bottom: 0.5rem;
-    }
-
-    .file-info {
-        display: flex;
-        align-items: center;
-    }
-
-    .file-icon {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 4px;
-        background: #ea580c;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        margin-right: 0.75rem;
-        font-size: 0.875rem;
-    }
-
-    .btn-remove-file {
-        background: #ef4444;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-        cursor: pointer;
-    }
-
-    .btn-group {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid #e5e7eb;
-    }
-
-    .btn {
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 500;
-        font-size: 0.875rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #ea580c, #dc2626);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
-    }
-
-    .btn-secondary {
-        background: #6b7280;
-        color: white;
-    }
-
-    .btn-secondary:hover {
-        background: #4b5563;
-        color: white;
-        text-decoration: none;
-    }
-
-    .type-options {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .type-option {
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        padding: 1rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: center;
-    }
-
-    .type-option:hover {
-        border-color: #ea580c;
-        background-color: #fef7f2;
-    }
-
-    .type-option.selected {
-        border-color: #ea580c;
-        background-color: #fef7f2;
-    }
-
-    .type-option input[type="radio"] {
-        display: none;
-    }
-
-    .type-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .type-title {
-        font-weight: 600;
-        color: #1f2937;
-        margin-bottom: 0.25rem;
-    }
-
-    .type-desc {
-        font-size: 0.75rem;
-        color: #6b7280;
-    }
-
-    .form-label {
-        font-weight: 500;
-        color: #374151;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .required::after {
-        content: '*';
-        color: #dc2626;
-        margin-left: 4px;
-    }
-</style>
-@endpush
-
-@section('content')
-<div class="main-content">
-    <div class="form-container">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 style="font-size: 2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0;">
-                        Créer un Rapport d'Intervention
-                    </h1>
-                    <p style="color: #6b7280; margin: 0;">
-                        Documentez vos interventions techniques avec précision
-                    </p>
-                </div>
-                <a href="{{ route('reports.index') }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>
-                    Retour
-                </a>
-            </div>
-        </div>
-
-        <!-- Form -->
-        <div class="form-card">
-            <div class="form-header">
-                <h2 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin: 0; display: flex; align-items: center;">
-                    <i class="bi bi-file-earmark-plus text-orange-600 me-2"></i>
-                    Nouveau Rapport d'Intervention
-                </h2>
-            </div>
-
-            <div class="form-body">
-                <form method="POST" action="{{ route('reports.store') }}" enctype="multipart/form-data" id="reportForm">
-                    @csrf
-
-                    <!-- Informations générales -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class="bi bi-info-circle"></i>
-                            Informations Générales
-                        </h3>
-
-                        <div class="mb-3">
-                            <label for="titre" class="form-label required">Titre du rapport</label>
-                            <input type="text" class="form-control @error('titre') is-invalid @enderror"
-                                   id="titre" name="titre" value="{{ old('titre') }}" required
-                                   placeholder="Ex: Maintenance pompe station A - Secteur Nord">
-                            @error('titre')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="date_intervention" class="form-label required">Date d'intervention</label>
-                                <input type="date" class="form-control @error('date_intervention') is-invalid @enderror"
-                                       id="date_intervention" name="date_intervention"
-                                       value="{{ old('date_intervention', date('Y-m-d')) }}" required>
-                                @error('date_intervention')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="lieu" class="form-label required">Lieu d'intervention</label>
-                                <input type="text" class="form-control @error('lieu') is-invalid @enderror"
-                                       id="lieu" name="lieu" value="{{ old('lieu') }}" required
-                                       placeholder="Ex: Zone A - Station de pompage principale">
-                                @error('lieu')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Type d'intervention -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class="bi bi-tag"></i>
-                            Type d'Intervention
-                        </h3>
-
-                        <div class="type-options">
-                            <div class="type-option" onclick="selectType('maintenance')">
-                                <input type="radio" name="type_intervention" value="maintenance" id="type_maintenance">
-                                <span class="type-icon">🔧</span>
-                                <div class="type-title">Maintenance</div>
-                                <div class="type-desc">Entretien préventif ou correctif</div>
-                            </div>
-
-                            <div class="type-option" onclick="selectType('inspection')">
-                                <input type="radio" name="type_intervention" value="inspection" id="type_inspection">
-                                <span class="type-icon">🔍</span>
-                                <div class="type-title">Inspection</div>
-                                <div class="type-desc">Contrôle et vérification</div>
-                            </div>
-
-                            <div class="type-option" onclick="selectType('reparation')">
-                                <input type="radio" name="type_intervention" value="reparation" id="type_reparation">
-                                <span class="type-icon">⚠️</span>
-                                <div class="type-title">Réparation</div>
-                                <div class="type-desc">Intervention d'urgence</div>
-                            </div>
-
-                            <div class="type-option" onclick="selectType('controle')">
-                                <input type="radio" name="type_intervention" value="controle" id="type_controle">
-                                <span class="type-icon">✅</span>
-                                <div class="type-title">Contrôle</div>
-                                <div class="type-desc">Mesures et analyses</div>
-                            </div>
-                        </div>
-
-                        @error('type_intervention')
-                            <div class="text-danger small">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <!-- Description détaillée -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class="bi bi-file-text"></i>
-                            Description de l'Intervention
-                        </h3>
-
-                        <div class="mb-3">
-                            <label for="actions" class="form-label required">Actions réalisées</label>
-                            <textarea class="form-control @error('actions') is-invalid @enderror"
-                                      id="actions" name="actions" rows="4" required
-                                      placeholder="Décrivez en détail les actions que vous avez effectuées...">{{ old('actions') }}</textarea>
-                            @error('actions')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="resultats" class="form-label required">Résultats obtenus</label>
-                            <textarea class="form-control @error('resultats') is-invalid @enderror"
-                                      id="resultats" name="resultats" rows="3" required
-                                      placeholder="Quels sont les résultats de votre intervention ?">{{ old('resultats') }}</textarea>
-                            @error('resultats')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="problemes" class="form-label">Problèmes rencontrés</label>
-                            <textarea class="form-control @error('problemes') is-invalid @enderror"
-                                      id="problemes" name="problemes" rows="3"
-                                      placeholder="Décrivez les difficultés ou problèmes rencontrés (optionnel)">{{ old('problemes') }}</textarea>
-                            @error('problemes')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="recommandations" class="form-label">Recommandations</label>
-                            <textarea class="form-control @error('recommandations') is-invalid @enderror"
-                                      id="recommandations" name="recommandations" rows="3"
-                                      placeholder="Vos recommandations pour l'avenir (optionnel)">{{ old('recommandations') }}</textarea>
-                            @error('recommandations')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <!-- Associations -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class="bi bi-link"></i>
-                            Associations
-                        </h3>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="id_tache" class="form-label">Tâche associée</label>
-                                <select class="form-select @error('id_tache') is-invalid @enderror" id="id_tache" name="id_tache">
-                                    <option value="">Aucune tâche</option>
-                                    @if(isset($tasks))
-                                        @foreach($tasks as $task)
-                                            <option value="{{ $task->id }}" {{ old('id_tache') == $task->id ? 'selected' : '' }}>
-                                                {{ $task->titre }}
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                </select>
-                                @error('id_tache')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="id_evenement" class="form-label">Événement associé</label>
-                                <select class="form-select @error('id_evenement') is-invalid @enderror" id="id_evenement" name="id_evenement">
-                                    <option value="">Aucun événement</option>
-                                    @if(isset($events))
-                                        @foreach($events as $event)
-                                            <option value="{{ $event->id }}" {{ old('id_evenement') == $event->id ? 'selected' : '' }}>
-                                                {{ $event->titre }} - {{ $event->date_debut->format('d/m/Y') }}
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                </select>
-                                @error('id_evenement')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Pièces jointes -->
-                    <div class="form-section">
-                        <h3 class="section-title">
-                            <i class="bi bi-paperclip"></i>
-                            Pièces Jointes
-                        </h3>
-
-                        <div class="file-upload" id="fileUploadArea">
-                            <div>
-                                <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #d1d5db; margin-bottom: 1rem;"></i>
-                                <p style="color: #6b7280; margin-bottom: 0.5rem;">
-                                    <strong>Cliquez pour sélectionner</strong> ou glissez-déposez vos fichiers ici
-                                </p>
-                                <p style="color: #9ca3af; font-size: 0.875rem;">
-                                    Photos, documents PDF, Word acceptés (max 10MB par fichier)
-                                </p>
-                                <input type="file" id="fileInput" name="pieces_jointes[]" multiple
-                                       accept="image/*,.pdf,.doc,.docx" style="display: none;">
-                            </div>
-                        </div>
-
-                        <div class="uploaded-files" id="uploadedFiles" style="display: none;">
-                            <h6 style="margin-bottom: 1rem;">Fichiers sélectionnés :</h6>
-                        </div>
-                    </div>
-
-                    <!-- Boutons -->
-                    <div class="btn-group">
-                        <a href="{{ route('reports.index') }}" class="btn btn-secondary">
-                            Annuler
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-2"></i>
-                            Créer le Rapport
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
-
-@push('scripts')
-<script>
-// Sélection du type d'intervention
-function selectType(type) {
-    document.querySelectorAll('.type-option').forEach(option => {
-        option.classList.remove('selected');
-    });
-
-    event.currentTarget.classList.add('selected');
-    document.getElementById('type_' + type).checked = true;
-}
-
-// Gestion des fichiers
-document.addEventListener('DOMContentLoaded', function() {
-    const fileUploadArea = document.getElementById('fileUploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const uploadedFiles = document.getElementById('uploadedFiles');
-    let selectedFiles = [];
-
-    // Click sur la zone de upload
-    fileUploadArea.addEventListener('click', function() {
-        fileInput.click();
-    });
-
-    // Drag & Drop
-    fileUploadArea.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        this.classList.add('dragover');
-    });
-
-    fileUploadArea.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        this.classList.remove('dragover');
-    });
-
-    fileUploadArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        this.classList.remove('dragover');
-
-        const files = Array.from(e.dataTransfer.files);
-        handleFiles(files);
-    });
-
-    // Sélection de fichiers
-    fileInput.addEventListener('change', function() {
-        const files = Array.from(this.files);
-        handleFiles(files);
-    });
-
-    function handleFiles(files) {
-        files.forEach(file => {
-            if (validateFile(file)) {
-                selectedFiles.push(file);
-                displayFile(file);
-            }
+    // Auto-submit du formulaire de filtres quand on change les selects
+    document.querySelectorAll('select[name="statut"], select[name="user_id"], select[name="type_intervention"]').forEach(function(select) {
+        select.addEventListener('change', function() {
+            this.form.submit();
         });
-
-        updateFileInput();
-
-        if (selectedFiles.length > 0) {
-            uploadedFiles.style.display = 'block';
-        }
-    }
-
-    function validateFile(file) {
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-
-        if (file.size > maxSize) {
-            alert(`Le fichier "${file.name}" est trop volumineux (max 10MB)`);
-            return false;
-        }
-
-        if (!allowedTypes.some(type => file.type.startsWith(type) || file.type === type)) {
-            alert(`Le type de fichier "${file.name}" n'est pas autorisé`);
-            return false;
-        }
-
-        return true;
-    }
-
-    function displayFile(file) {
-        const fileItem = document.createElement('div');
-        fileItem.className = 'file-item';
-        fileItem.innerHTML = `
-            <div class="file-info">
-                <div class="file-icon">
-                    <i class="bi bi-${getFileIcon(file)}"></i>
-                </div>
-                <div>
-                    <div style="font-weight: 500; color: #1f2937;">${file.name}</div>
-                    <div style="font-size: 0.75rem; color: #6b7280;">${formatFileSize(file.size)}</div>
-                </div>
-            </div>
-            <button type="button" class="btn-remove-file" onclick="removeFile('${file.name}')">
-                <i class="bi bi-x"></i>
-            </button>
-        `;
-
-        uploadedFiles.appendChild(fileItem);
-    }
-
-    function getFileIcon(file) {
-        if (file.type.startsWith('image/')) return 'image';
-        if (file.type === 'application/pdf') return 'file-pdf';
-        if (file.type.includes('word')) return 'file-word';
-        return 'file';
-    }
-
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    function updateFileInput() {
-        const dt = new DataTransfer();
-        selectedFiles.forEach(file => dt.items.add(file));
-        fileInput.files = dt.files;
-    }
-
-    // Fonction globale pour supprimer un fichier
-    window.removeFile = function(fileName) {
-        selectedFiles = selectedFiles.filter(file => file.name !== fileName);
-
-        // Supprimer l'élément visuel
-        const fileItems = uploadedFiles.querySelectorAll('.file-item');
-        fileItems.forEach(item => {
-            if (item.textContent.includes(fileName)) {
-                item.remove();
-            }
-        });
-
-        updateFileInput();
-
-        if (selectedFiles.length === 0) {
-            uploadedFiles.style.display = 'none';
-        }
-    };
-
-    // Validation du formulaire
-    document.getElementById('reportForm').addEventListener('submit', function(e) {
-        const typeSelected = document.querySelector('input[name="type_intervention"]:checked');
-        if (!typeSelected) {
-            e.preventDefault();
-            alert('Veuillez sélectionner un type d\'intervention');
-            return false;
-        }
     });
+
+    // Recherche avec délai
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let timeout = null;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                this.form.submit();
+            }, 500);
+        });
+    }
 });
 </script>
 @endpush

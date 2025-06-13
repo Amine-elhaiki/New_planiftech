@@ -181,9 +181,6 @@ return new class extends Migration
      */
     private function addMissingIndexes(): void
     {
-        $connection = Schema::getConnection();
-        $schemaBuilder = $connection->getSchemaBuilder();
-
         // Liste des index à vérifier/ajouter
         $indexesToAdd = [
             ['columns' => ['id_evenement', 'statut_presence'], 'name' => 'idx_event_status'],
@@ -205,7 +202,6 @@ return new class extends Migration
                     DB::statement("CREATE INDEX {$indexInfo['name']} ON participant_events ({$columnsList})");
                 }
             } catch (\Exception $e) {
-                // Log l'erreur mais continue
                 Log::warning("Impossible de créer l'index {$indexInfo['name']}: " . $e->getMessage());
             }
         }
@@ -217,10 +213,7 @@ return new class extends Migration
     private function updateStatusPresenceEnum(): void
     {
         try {
-            // Vérifier la version de MySQL/MariaDB pour la syntaxe appropriée
             $connection = Schema::getConnection();
-
-            // Modifier l'enum pour inclure 'excuse' si pas déjà présent
             $connection->statement("
                 ALTER TABLE participant_events
                 MODIFY COLUMN statut_presence ENUM(
@@ -232,7 +225,6 @@ return new class extends Migration
                     'excuse'
                 ) DEFAULT 'invite'
             ");
-
         } catch (\Exception $e) {
             Log::warning("Impossible de mettre à jour l'enum statut_presence: " . $e->getMessage());
         }
@@ -264,13 +256,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Option 1: Supprimer complètement la table
-        // Schema::dropIfExists('participant_events');
-
-        // Option 2: Supprimer seulement les nouvelles colonnes (plus sûr)
         if (Schema::hasTable('participant_events')) {
             Schema::table('participant_events', function (Blueprint $table) {
-                // Supprimer les nouvelles colonnes ajoutées
                 $columnsToDropIfExist = [
                     'preferences',
                     'statut_transport',
@@ -283,13 +270,11 @@ return new class extends Migration
                     }
                 }
 
-                // Supprimer soft deletes si ajouté
                 if (Schema::hasColumn('participant_events', 'deleted_at')) {
                     $table->dropSoftDeletes();
                 }
             });
 
-            // Supprimer les index ajoutés
             $this->dropAddedIndexes();
         }
     }
@@ -300,16 +285,9 @@ return new class extends Migration
     private function dropAddedIndexes(): void
     {
         $indexesToDrop = [
-            'idx_event_status',
-            'idx_event_role',
-            'idx_user_status',
-            'idx_user_chronology',
-            'idx_notifications',
-            'idx_reminders',
-            'idx_stats_presence',
-            'idx_stats_roles',
-            'idx_event_active',
-            'idx_status_active'
+            'idx_event_status', 'idx_event_role', 'idx_user_status', 'idx_user_chronology',
+            'idx_notifications', 'idx_reminders', 'idx_stats_presence', 'idx_stats_roles',
+            'idx_event_active', 'idx_status_active'
         ];
 
         foreach ($indexesToDrop as $indexName) {

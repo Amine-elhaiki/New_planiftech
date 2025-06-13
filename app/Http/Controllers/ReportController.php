@@ -25,65 +25,134 @@ class ReportController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Report::with(['utilisateur', 'tache', 'evenement', 'piecesJointes']);
+        $user = Auth::user();
+        $isAdmin = $user->role === 'admin';
 
-        // Filtrage selon le rôle
-        if (Auth::user()->role !== 'admin') {
-            $query->where('id_utilisateur', Auth::id());
+        // Query de base selon le rôle
+        if ($isAdmin) {
+            $query = Report::with(['utilisateur', 'tache', 'evenement', 'piecesJointes']);
+        } else {
+            $query = Report::with(['utilisateur', 'tache', 'evenement', 'piecesJointes'])
+                          ->where('id_utilisateur', $user->id);
         }
 
-        // Filtres de recherche
+        // Appliquer les filtres
         if ($request->filled('search')) {
-            $search = $request->input('search');
+            $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('titre', 'like', "%{$search}%")
                   ->orWhere('lieu', 'like', "%{$search}%")
-                  ->orWhere('type_intervention', 'like', "%{$search}%")
-                  ->orWhere('actions', 'like', "%{$search}%");
+                  ->orWhere('type_intervention', 'like', "%{$search}%");
             });
         }
 
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->statut);
+        }
+
+        if ($request->filled('user_id') && $isAdmin) {
+            $query->where('id_utilisateur', $request->user_id);
+        }
+
         if ($request->filled('type_intervention')) {
-            $query->where('type_intervention', $request->input('type_intervention'));
+            $query->where('type_intervention', $request->type_intervention);
         }
 
-        if ($request->filled('utilisateur') && Auth::user()->role === 'admin') {
-            $query->where('id_utilisateur', $request->input('utilisateur'));
+        // Tri par date d'intervention décroissante
+        $query->orderBy('date_intervention', 'desc');
+
+        // Pagination
+        $reports = $query->paginate(12)->withQueryString();
+
+        // Statistiques
+        if ($isAdmin) {
+            $stats = [
+                'total' => Report::count(),
+                'en_attente' => Report::where('statut', 'en_attente')->count(),
+                'valides' => Report::where('statut', 'valide')->count(),
+                'rejetes' => Report::where('statut', 'rejete')->count(),
+                'cette_semaine' => Report::whereBetween('date_intervention', [
+                    now()->startOfWeek(),
+                    now()->endOfWeek()
+                ])->count(),
+                'ce_mois' => Report::whereBetween('date_intervention', [
+                    now()->startOfMonth(),
+                    now()->endOfMonth()
+                ])->count(),
+            ];
+
+            // Liste des utilisateurs avec nombre de rapports pour le filtre
+            $users = User::withCount('rapports')
+                        ->where('role', '!=', 'admin')
+                        ->orderBy('nom')
+                        ->get();
+        } else {
+            $userReportQuery = Report::where('id_utilisateur', $user->id);
+            
+            $stats = [
+                'total' => $userReportQuery->count(),
+                'en_attente' => $userReportQuery->where('statut', 'en_attente')->count(),
+                'valides' => $userReportQuery->where('statut', 'valide')->count(),
+                'rejetes' => $userReportQuery->where('statut', 'rejete')->count(),
+                'ce_mois' => $userReportQuery->whereMonth('date_intervention', now()->month)->count(),
+            ];
+
+            $users = collect();
         }
 
-        if ($request->filled('date_debut') && $request->filled('date_fin')) {
-            $query->whereBetween('date_intervention', [
-                $request->input('date_debut'),
-                $request->input('date_fin')
-            ]);
-        }
+        // Types d'intervention disponibles
+        $typesIntervention = Report::select('type_intervention')
+                                  ->distinct()
+                                  ->pluck('type_intervention')
+                                  ->filter()
+                                  ->sort()
+                                  ->values();
 
-        // Tri
-        $sortBy = $request->input('sort_by', 'date_intervention');
-        $sortOrder = $request->input('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
-        $reports = $query->paginate(15)->withQueryString();
-
-        // Types d'intervention pour le filtre
-        $interventionTypes = Report::distinct()->pluck('type_intervention')->filter();
-
-        // Données pour les filtres
-        $users = Auth::user()->role === 'admin' ? User::where('statut', 'actif')->get() : collect();
-
-        return view('reports.index', compact('reports', 'interventionTypes', 'users'));
+        return view('reports.index', compact(
+            'reports', 
+            'stats', 
+            'users', 
+            'typesIntervention',
+            'isAdmin'
+        ));
     }
 
     /**
      * Afficher le formulaire de création
      */
-    public function create(Request $request)
+    public function create()
     {
-        // Récupérer la tâche ou l'événement si spécifié
-        $task = $request->filled('task_id') ? Task::findOrFail($request->input('task_id')) : null;
-        $event = $request->filled('event_id') ? Event::findOrFail($request->input('event_id')) : null;
+        $user = Auth::user();
+        
+        // Récupérer les tâches assignées à l'utilisateur (non terminées)
+        $taches = Task::where('id_utilisateur', $user->id)
+                     ->whereIn('statut', ['a_faire', 'en_cours'])
+                     ->orderBy('date_echeance')
+                     ->get();
 
-        return view('reports.create', compact('task', 'event'));
+        // Récupérer les événements où l'utilisateur participe (futurs ou récents)
+        $evenements = Event::where('id_organisateur', $user->id)
+                          ->orWhereHas('participants', function($q) use ($user) {
+                              $q->where('id_utilisateur', $user->id);
+                          })
+                          ->where('date_debut', '>=', now()->subDays(30))
+                          ->orderBy('date_debut', 'desc')
+                          ->get();
+
+        // Types d'intervention prédéfinis
+        $typesIntervention = [
+            'Maintenance préventive',
+            'Maintenance corrective',
+            'Installation',
+            'Réparation',
+            'Inspection',
+            'Formation',
+            'Support technique',
+            'Audit',
+            'Autre'
+        ];
+
+        return view('reports.create', compact('taches', 'evenements', 'typesIntervention'));
     }
 
     /**
@@ -91,92 +160,90 @@ class ReportController extends Controller
      */
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
-            'titre' => 'required|string|max:255',
+        $request->validate([
+            'titre' => 'required|string|max:100',
             'date_intervention' => 'required|date|before_or_equal:today',
-            'lieu' => 'required|string|max:255',
-            'type_intervention' => 'required|string|max:100',
+            'lieu' => 'required|string|max:100',
+            'type_intervention' => 'required|string|max:50',
             'actions' => 'required|string',
             'resultats' => 'required|string',
             'problemes' => 'nullable|string',
             'recommandations' => 'nullable|string',
-            'id_tache' => 'nullable|exists:taches,id',
-            'id_evenement' => 'nullable|exists:evenements,id',
-            'pieces_jointes.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120' // 5MB max
-        ], [
-            'titre.required' => 'Le titre est obligatoire.',
-            'date_intervention.required' => 'La date d\'intervention est obligatoire.',
-            'date_intervention.before_or_equal' => 'La date d\'intervention ne peut pas être dans le futur.',
-            'lieu.required' => 'Le lieu est obligatoire.',
-            'type_intervention.required' => 'Le type d\'intervention est obligatoire.',
-            'actions.required' => 'La description des actions est obligatoire.',
-            'resultats.required' => 'La description des résultats est obligatoire.',
-            'pieces_jointes.*.mimes' => 'Les fichiers doivent être de type: jpg, jpeg, png, pdf, doc, docx.',
-            'pieces_jointes.*.max' => 'Chaque fichier ne doit pas dépasser 5 MB.'
+            'id_tache' => 'nullable|exists:tasks,id',
+            'id_evenement' => 'nullable|exists:events,id',
+            'pieces_jointes.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,gif|max:10240', // 10MB max
         ]);
 
-        // Vérifier les permissions pour la tâche/événement
-        if (isset($validatedData['id_tache'])) {
-            $task = Task::findOrFail($validatedData['id_tache']);
-            if (Auth::user()->role !== 'admin' && $task->id_utilisateur !== Auth::id()) {
-                abort(403, 'Vous ne pouvez créer un rapport que pour vos propres tâches.');
-            }
-        }
-
-        if (isset($validatedData['id_evenement'])) {
-            $event = Event::findOrFail($validatedData['id_evenement']);
-            if (Auth::user()->role !== 'admin' &&
-                $event->id_organisateur !== Auth::id() &&
-                !$event->participants->contains('id_utilisateur', Auth::id())) {
-                abort(403, 'Vous ne pouvez créer un rapport que pour vos propres événements.');
-            }
-        }
-
-        $validatedData['id_utilisateur'] = Auth::id();
-
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
-
-            $report = Report::create($validatedData);
+            // Créer le rapport
+            $report = Report::create([
+                'titre' => $request->titre,
+                'date_intervention' => $request->date_intervention,
+                'lieu' => $request->lieu,
+                'type_intervention' => $request->type_intervention,
+                'actions' => $request->actions,
+                'resultats' => $request->resultats,
+                'problemes' => $request->problemes,
+                'recommandations' => $request->recommandations,
+                'id_utilisateur' => Auth::id(),
+                'id_tache' => $request->id_tache,
+                'id_evenement' => $request->id_evenement,
+                'statut' => 'en_attente',
+            ]);
 
             // Traiter les pièces jointes
             if ($request->hasFile('pieces_jointes')) {
                 foreach ($request->file('pieces_jointes') as $file) {
-                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $originalName = $file->getClientOriginalName();
+                    $filename = time() . '_' . $originalName;
                     $path = $file->storeAs('reports/' . $report->id, $filename, 'public');
 
                     PieceJointe::create([
-                        'nom_fichier' => $file->getClientOriginalName(),
-                        'type_fichier' => $file->getClientMimeType(),
+                        'nom_fichier' => $filename,
+                        'nom_original' => $originalName,
+                        'type_fichier' => $file->getClientOriginalExtension(),
                         'taille' => $file->getSize(),
                         'chemin' => $path,
-                        'id_rapport' => $report->id
+                        'mime_type' => $file->getMimeType(),
+                        'id_rapport' => $report->id,
                     ]);
+                }
+            }
+
+            // Mettre à jour le statut de la tâche si liée
+            if ($request->id_tache) {
+                $tache = Task::find($request->id_tache);
+                if ($tache && $tache->statut !== 'termine') {
+                    $tache->update(['statut' => 'termine', 'date_fin_reelle' => now()]);
                 }
             }
 
             DB::commit();
 
             return redirect()->route('reports.index')
-                            ->with('success', 'Rapport d\'intervention créé avec succès.');
+                           ->with('success', 'Rapport créé avec succès !');
 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'Erreur lors de la création du rapport.']);
+            return back()->withInput()
+                        ->with('error', 'Erreur lors de la création du rapport : ' . $e->getMessage());
         }
     }
 
     /**
-     * Afficher un rapport spécifique
+     * Afficher un rapport
      */
     public function show(Report $report)
     {
+        $user = Auth::user();
+
         // Vérifier les permissions
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez voir que vos propres rapports.');
+        if ($user->role !== 'admin' && $report->id_utilisateur !== $user->id) {
+            abort(403, 'Accès non autorisé à ce rapport.');
         }
 
-        $report->load(['utilisateur', 'tache.projet', 'evenement', 'piecesJointes']);
+        $report->load(['utilisateur', 'tache', 'evenement', 'piecesJointes']);
 
         return view('reports.show', compact('report'));
     }
@@ -186,24 +253,39 @@ class ReportController extends Controller
      */
     public function edit(Report $report)
     {
-        // Vérifier les permissions
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez modifier que vos propres rapports.');
+        $user = Auth::user();
+
+        // Vérifier les permissions (seul l'auteur peut modifier si en attente)
+        if ($user->role !== 'admin' && ($report->id_utilisateur !== $user->id || $report->statut !== 'en_attente')) {
+            abort(403, 'Vous ne pouvez pas modifier ce rapport.');
         }
 
-        // Empêcher la modification des rapports anciens (plus de 48h)
-        if ($report->date_creation->diffInHours(now()) > 48 && Auth::user()->role !== 'admin') {
-            abort(403, 'Vous ne pouvez modifier un rapport que dans les 48h suivant sa création.');
-        }
+        // Récupérer les tâches et événements
+        $taches = Task::where('id_utilisateur', $report->id_utilisateur)
+                     ->whereIn('statut', ['a_faire', 'en_cours', 'termine'])
+                     ->orderBy('date_echeance')
+                     ->get();
 
-        $tasks = Task::where('id_utilisateur', Auth::id())->get();
-        $events = Event::where('id_organisateur', Auth::id())
-                      ->orWhereHas('participants', function($q) {
-                          $q->where('id_utilisateur', Auth::id());
-                      })
-                      ->get();
+        $evenements = Event::where('id_organisateur', $report->id_utilisateur)
+                          ->orWhereHas('participants', function($q) use ($report) {
+                              $q->where('id_utilisateur', $report->id_utilisateur);
+                          })
+                          ->orderBy('date_debut', 'desc')
+                          ->get();
 
-        return view('reports.edit', compact('report', 'tasks', 'events'));
+        $typesIntervention = [
+            'Maintenance préventive',
+            'Maintenance corrective',
+            'Installation',
+            'Réparation',
+            'Inspection',
+            'Formation',
+            'Support technique',
+            'Audit',
+            'Autre'
+        ];
+
+        return view('reports.edit', compact('report', 'taches', 'evenements', 'typesIntervention'));
     }
 
     /**
@@ -211,59 +293,71 @@ class ReportController extends Controller
      */
     public function update(Request $request, Report $report)
     {
+        $user = Auth::user();
+
         // Vérifier les permissions
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez modifier que vos propres rapports.');
+        if ($user->role !== 'admin' && ($report->id_utilisateur !== $user->id || $report->statut !== 'en_attente')) {
+            abort(403, 'Vous ne pouvez pas modifier ce rapport.');
         }
 
-        // Empêcher la modification des rapports anciens
-        if ($report->date_creation->diffInHours(now()) > 48 && Auth::user()->role !== 'admin') {
-            abort(403, 'Vous ne pouvez modifier un rapport que dans les 48h suivant sa création.');
-        }
-
-        $validatedData = $request->validate([
-            'titre' => 'required|string|max:255',
+        $request->validate([
+            'titre' => 'required|string|max:100',
             'date_intervention' => 'required|date|before_or_equal:today',
-            'lieu' => 'required|string|max:255',
-            'type_intervention' => 'required|string|max:100',
+            'lieu' => 'required|string|max:100',
+            'type_intervention' => 'required|string|max:50',
             'actions' => 'required|string',
             'resultats' => 'required|string',
             'problemes' => 'nullable|string',
             'recommandations' => 'nullable|string',
-            'id_tache' => 'nullable|exists:taches,id',
-            'id_evenement' => 'nullable|exists:evenements,id',
-            'pieces_jointes.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120'
+            'id_tache' => 'nullable|exists:tasks,id',
+            'id_evenement' => 'nullable|exists:events,id',
+            'pieces_jointes.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,gif|max:10240',
         ]);
 
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
-
-            $report->update($validatedData);
+            // Mettre à jour le rapport
+            $report->update([
+                'titre' => $request->titre,
+                'date_intervention' => $request->date_intervention,
+                'lieu' => $request->lieu,
+                'type_intervention' => $request->type_intervention,
+                'actions' => $request->actions,
+                'resultats' => $request->resultats,
+                'problemes' => $request->problemes,
+                'recommandations' => $request->recommandations,
+                'id_tache' => $request->id_tache,
+                'id_evenement' => $request->id_evenement,
+            ]);
 
             // Traiter les nouvelles pièces jointes
             if ($request->hasFile('pieces_jointes')) {
                 foreach ($request->file('pieces_jointes') as $file) {
-                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $originalName = $file->getClientOriginalName();
+                    $filename = time() . '_' . $originalName;
                     $path = $file->storeAs('reports/' . $report->id, $filename, 'public');
 
                     PieceJointe::create([
-                        'nom_fichier' => $file->getClientOriginalName(),
-                        'type_fichier' => $file->getClientMimeType(),
+                        'nom_fichier' => $filename,
+                        'nom_original' => $originalName,
+                        'type_fichier' => $file->getClientOriginalExtension(),
                         'taille' => $file->getSize(),
                         'chemin' => $path,
-                        'id_rapport' => $report->id
+                        'mime_type' => $file->getMimeType(),
+                        'id_rapport' => $report->id,
                     ]);
                 }
             }
 
             DB::commit();
 
-            return redirect()->route('reports.index')
-                            ->with('success', 'Rapport mis à jour avec succès.');
+            return redirect()->route('reports.show', $report)
+                           ->with('success', 'Rapport mis à jour avec succès !');
 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'Erreur lors de la mise à jour du rapport.']);
+            return back()->withInput()
+                        ->with('error', 'Erreur lors de la mise à jour : ' . $e->getMessage());
         }
     }
 
@@ -272,184 +366,118 @@ class ReportController extends Controller
      */
     public function destroy(Report $report)
     {
-        // Vérifier les permissions
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez supprimer que vos propres rapports.');
+        $user = Auth::user();
+
+        // Seul l'admin peut supprimer
+        if ($user->role !== 'admin') {
+            abort(403, 'Seuls les administrateurs peuvent supprimer des rapports.');
         }
 
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
-
-            // Supprimer les fichiers physiques
+            // Supprimer les fichiers associés
             foreach ($report->piecesJointes as $pieceJointe) {
                 Storage::disk('public')->delete($pieceJointe->chemin);
-                $pieceJointe->delete();
             }
 
-            // Supprimer le dossier s'il est vide
-            Storage::disk('public')->deleteDirectory('reports/' . $report->id);
-
+            // Supprimer le rapport (les pièces jointes seront supprimées en cascade)
             $report->delete();
 
             DB::commit();
 
             return redirect()->route('reports.index')
-                            ->with('success', 'Rapport supprimé avec succès.');
+                           ->with('success', 'Rapport supprimé avec succès !');
 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'Erreur lors de la suppression du rapport.']);
+            return back()->with('error', 'Erreur lors de la suppression : ' . $e->getMessage());
         }
+    }
+
+    /**
+     * ✅ CORRIGÉ : Valider un rapport (admin seulement) - Méthode renommée
+     */
+    public function validateReport(Report $report)
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'admin') {
+            abort(403, 'Seuls les administrateurs peuvent valider des rapports.');
+        }
+
+        $report->update(['statut' => 'valide']);
+
+        return back()->with('success', 'Rapport validé avec succès !');
+    }
+
+    /**
+     * Rejeter un rapport (admin seulement)
+     */
+    public function reject(Request $request, Report $report)
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'admin') {
+            abort(403, 'Seuls les administrateurs peuvent rejeter des rapports.');
+        }
+
+        $request->validate([
+            'motif_rejet' => 'required|string|max:500'
+        ]);
+
+        $report->update([
+            'statut' => 'rejete',
+            'motif_rejet' => $request->motif_rejet
+        ]);
+
+        return back()->with('success', 'Rapport rejeté.');
     }
 
     /**
      * Télécharger une pièce jointe
      */
-    
     public function downloadAttachment(PieceJointe $pieceJointe)
     {
+        $user = Auth::user();
+
         // Vérifier les permissions
-        $report = $pieceJointe->rapport;
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez télécharger que vos propres fichiers.');
+        if ($user->role !== 'admin' && $pieceJointe->rapport->id_utilisateur !== $user->id) {
+            abort(403, 'Accès non autorisé à ce fichier.');
         }
 
-        if (!Storage::disk('public')->exists($pieceJointe->chemin)) {
+        $filePath = storage_path('app/public/' . $pieceJointe->chemin);
+
+        if (!file_exists($filePath)) {
             abort(404, 'Fichier non trouvé.');
         }
 
-        // Obtenir le chemin complet du fichier
-        $filePath = Storage::disk('public')->path($pieceJointe->chemin);
-
-        // Vérifier que le fichier existe physiquement
-        if (!file_exists($filePath)) {
-            abort(404, 'Fichier non trouvé sur le serveur.');
-        }
-
-        // Retourner le téléchargement du fichier
-        return response()->download($filePath, $pieceJointe->nom_fichier, [
-            'Content-Type' => $pieceJointe->type_fichier,
-        ]);
+        return response()->download($filePath, $pieceJointe->nom_original);
     }
-
 
     /**
      * Supprimer une pièce jointe
      */
     public function deleteAttachment(PieceJointe $pieceJointe)
     {
+        $user = Auth::user();
+
         // Vérifier les permissions
-        $report = $pieceJointe->rapport;
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez supprimer que vos propres fichiers.');
+        if ($user->role !== 'admin' && 
+            ($pieceJointe->rapport->id_utilisateur !== $user->id || $pieceJointe->rapport->statut !== 'en_attente')) {
+            abort(403, 'Vous ne pouvez pas supprimer ce fichier.');
         }
 
         try {
+            // Supprimer le fichier physique
             Storage::disk('public')->delete($pieceJointe->chemin);
+            
+            // Supprimer l'enregistrement
             $pieceJointe->delete();
 
-            return response()->json(['success' => true, 'message' => 'Pièce jointe supprimée.']);
+            return back()->with('success', 'Fichier supprimé avec succès !');
+
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression.']);
+            return back()->with('error', 'Erreur lors de la suppression du fichier.');
         }
-    }
-
-    /**
-     * Exporter un rapport en PDF
-     */
-    public function exportPdf(Report $report)
-    {
-        // Vérifier les permissions
-        if (Auth::user()->role !== 'admin' && $report->id_utilisateur !== Auth::id()) {
-            abort(403, 'Vous ne pouvez exporter que vos propres rapports.');
-        }
-
-        $report->load(['utilisateur', 'tache.projet', 'evenement', 'piecesJointes']);
-
-        // Générer le contenu HTML pour le PDF
-        $html = view('reports.pdf', compact('report'))->render();
-
-        // Pour cette version, nous retournons le HTML
-        // Dans un vrai projet, vous utiliseriez une bibliothèque PDF comme dompdf
-        $filename = 'rapport_' . $report->id . '_' . Carbon::now()->format('Y-m-d') . '.html';
-
-        return response($html)
-            ->header('Content-Type', 'text/html')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-    }
-
-    /**
-     * Exporter plusieurs rapports
-     */
-    public function exportMultiple(Request $request)
-    {
-        $reportIds = $request->input('report_ids', []);
-
-        if (empty($reportIds)) {
-            return back()->withErrors(['error' => 'Aucun rapport sélectionné.']);
-        }
-
-        $query = Report::with(['utilisateur', 'tache.projet', 'evenement'])
-                      ->whereIn('id', $reportIds);
-
-        // Filtrer selon les permissions
-        if (Auth::user()->role !== 'admin') {
-            $query->where('id_utilisateur', Auth::id());
-        }
-
-        $reports = $query->get();
-
-        if ($reports->isEmpty()) {
-            return back()->withErrors(['error' => 'Aucun rapport trouvé ou autorisé.']);
-        }
-
-        // Générer le contenu HTML pour les rapports multiples
-        $html = view('reports.multiple-pdf', compact('reports'))->render();
-
-        $filename = 'rapports_' . Carbon::now()->format('Y-m-d_H-i-s') . '.html';
-
-        return response($html)
-            ->header('Content-Type', 'text/html')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-    }
-
-    /**
-     * Statistiques des rapports
-     */
-    public function statistics(Request $request)
-    {
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Seuls les administrateurs peuvent voir les statistiques.');
-        }
-
-        $startDate = $request->input('start_date', Carbon::now()->subMonths(3)->format('Y-m-d'));
-        $endDate = $request->input('end_date', Carbon::now()->format('Y-m-d'));
-
-        $stats = [
-            'total_reports' => Report::whereBetween('date_intervention', [$startDate, $endDate])->count(),
-            'reports_by_month' => Report::whereBetween('date_intervention', [$startDate, $endDate])
-                                       ->selectRaw('YEAR(date_intervention) as year, MONTH(date_intervention) as month, COUNT(*) as count')
-                                       ->groupBy('year', 'month')
-                                       ->orderBy('year')
-                                       ->orderBy('month')
-                                       ->get(),
-            'reports_by_type' => Report::whereBetween('date_intervention', [$startDate, $endDate])
-                                      ->selectRaw('type_intervention, COUNT(*) as count')
-                                      ->groupBy('type_intervention')
-                                      ->get(),
-            'reports_by_user' => Report::with('utilisateur')
-                                      ->whereBetween('date_intervention', [$startDate, $endDate])
-                                      ->selectRaw('id_utilisateur, COUNT(*) as count')
-                                      ->groupBy('id_utilisateur')
-                                      ->get(),
-            'top_locations' => Report::whereBetween('date_intervention', [$startDate, $endDate])
-                                    ->selectRaw('lieu, COUNT(*) as count')
-                                    ->groupBy('lieu')
-                                    ->orderByDesc('count')
-                                    ->limit(10)
-                                    ->get()
-        ];
-
-        return view('reports.statistics', compact('stats', 'startDate', 'endDate'));
     }
 }

@@ -1,11 +1,3 @@
-{{--
-==================================================
-FICHIER : resources/views/dashboard/technician.blade.php
-DESCRIPTION : Tableau de bord technicien avec sidebar améliorée
-AUTEUR : PlanifTech ORMVAT
-==================================================
---}}
-
 @extends('layouts.app')
 
 @section('title', 'Espace Technicien')
@@ -334,6 +326,8 @@ AUTEUR : PlanifTech ORMVAT
     .stat-icon.progress { background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; }
     .stat-icon.urgent { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
     .stat-icon.reports { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .stat-icon.events { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+    .stat-icon.invitations { background: linear-gradient(135deg, #ec4899, #db2777); color: white; }
 
     .stat-content h3 {
         font-size: 0.875rem;
@@ -361,12 +355,12 @@ AUTEUR : PlanifTech ORMVAT
 
     .content-grid {
         display: grid;
-        grid-template-columns: 1fr 2fr;
+        grid-template-columns: 1fr 1fr;
         gap: 2rem;
         margin-bottom: 2rem;
     }
 
-    .quick-actions {
+    .section-card {
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -378,6 +372,9 @@ AUTEUR : PlanifTech ORMVAT
         background: linear-gradient(135deg, #f8fafc, #f1f5f9);
         padding: 1.5rem;
         border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: between;
+        align-items: center;
     }
 
     .section-title {
@@ -385,196 +382,283 @@ AUTEUR : PlanifTech ORMVAT
         font-weight: 700;
         color: #1f2937;
         margin: 0;
+        display: flex;
+        align-items: center;
     }
 
-    .action-list {
+    .section-title i {
+        margin-right: 0.5rem;
+        color: #10b981;
+    }
+
+    .section-body {
         padding: 1.5rem;
     }
 
-    .action-btn {
+    /* ============================================
+       ÉVÉNEMENTS STYLES
+       ============================================ */
+    .event-item {
         display: flex;
         align-items: center;
-        padding: 1rem 1.25rem;
+        padding: 1rem;
         border-radius: 10px;
-        text-decoration: none;
-        color: white;
-        font-weight: 600;
+        margin-bottom: 1rem;
+        border-left: 4px solid #e5e7eb;
+        background: #f9fafb;
         transition: all 0.3s ease;
-        margin-bottom: 0.75rem;
+    }
+
+    .event-item:hover {
+        transform: translateX(5px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
-    .action-btn:last-child {
-        margin-bottom: 0;
+    .event-item.invitation {
+        border-left-color: #f59e0b;
+        background: #fef3c7;
     }
 
-    .action-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    .event-item.confirmed {
+        border-left-color: #10b981;
+        background: #d1fae5;
+    }
+
+    .event-item.today {
+        border-left-color: #3b82f6;
+        background: #dbeafe;
+    }
+
+    .event-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+        color: white;
+    }
+
+    .event-icon.invitation { background: #f59e0b; }
+    .event-icon.confirmed { background: #10b981; }
+    .event-icon.today { background: #3b82f6; }
+
+    .event-details {
+        flex: 1;
+    }
+
+    .event-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0 0 0.25rem 0;
+        font-size: 0.9rem;
+    }
+
+    .event-meta {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .event-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-event {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-confirm {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-confirm:hover {
+        background: #059669;
         color: white;
         text-decoration: none;
     }
 
-    .action-btn.create { background: linear-gradient(135deg, #10b981, #059669); }
-    .action-btn.view { background: linear-gradient(135deg, #3b82f6, #1e40af); }
-    .action-btn.planning { background: linear-gradient(135deg, #f59e0b, #d97706); }
-    .action-btn.contacts { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-
-    .action-btn i {
-        margin-right: 0.75rem;
-        font-size: 1.25rem;
+    .btn-decline {
+        background: #ef4444;
+        color: white;
     }
 
-    .tasks-section {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e5e7eb;
-        overflow: hidden;
+    .btn-decline:hover {
+        background: #dc2626;
+        color: white;
+        text-decoration: none;
     }
 
-    .task-card {
-        background: white;
-        border-radius: 10px;
-        padding: 1.25rem;
-        border-left: 4px solid #10b981;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        margin: 1rem 1.5rem;
-        transition: all 0.3s ease;
-        position: relative;
+    .btn-view {
+        background: #6b7280;
+        color: white;
     }
 
-    .task-card:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
+    .btn-view:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
     }
 
-    .task-card.urgent { border-left-color: #dc2626; }
-    .task-card.high { border-left-color: #d97706; }
-    .task-card.normal { border-left-color: #3b82f6; }
-    .task-card.low { border-left-color: #10b981; }
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
 
-    .task-header {
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* ============================================
+       TASK STYLES
+       ============================================ */
+    .task-item {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 0.75rem;
+        align-items: center;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #e5e7eb;
+        background: #f9fafb;
+        transition: all 0.3s ease;
+    }
+
+    .task-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .task-item.haute {
+        border-left-color: #f59e0b;
+    }
+
+    .task-item.moyenne {
+        border-left-color: #3b82f6;
+    }
+
+    .task-item.basse {
+        border-left-color: #10b981;
+    }
+
+    .task-priority {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+        color: white;
+    }
+
+    .task-priority.haute { background: #f59e0b; }
+    .task-priority.moyenne { background: #3b82f6; }
+    .task-priority.basse { background: #10b981; }
+
+    .task-content {
+        flex: 1;
     }
 
     .task-title {
-        font-weight: 700;
-        color: #1f2937;
-        margin: 0;
-        flex: 1;
-        font-size: 1rem;
-    }
-
-    .priority-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-left: 1rem;
-    }
-
-    .priority-urgent { background-color: #fee2e2; color: #991b1b; }
-    .priority-high { background-color: #fef3c7; color: #92400e; }
-    .priority-normal { background-color: #dbeafe; color: #1e40af; }
-    .priority-low { background-color: #dcfce7; color: #166534; }
-
-    .task-meta {
-        font-size: 0.75rem;
-        color: #6b7280;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .task-description {
-        color: #6b7280;
-        font-size: 0.875rem;
-        margin: 0;
-        line-height: 1.5;
-    }
-
-    .reports-table {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e5e7eb;
-        overflow: hidden;
-        margin-bottom: 2rem;
-    }
-
-    .table-content {
-        overflow-x: auto;
-    }
-
-    .reports-table table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 0;
-    }
-
-    .reports-table th {
-        text-align: left;
-        padding: 1rem 1.5rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #6b7280;
-        background-color: #f9fafb;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .reports-table td {
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #f3f4f6;
-        vertical-align: middle;
-    }
-
-    .reports-table tr:last-child td {
-        border-bottom: none;
-    }
-
-    .reports-table tr:hover {
-        background-color: #f9fafb;
-    }
-
-    .report-info h4 {
         font-weight: 600;
         color: #1f2937;
         margin: 0 0 0.25rem 0;
-        font-size: 0.875rem;
+        font-size: 0.9rem;
     }
 
-    .report-info p {
-        font-size: 0.75rem;
+    .task-deadline {
+        font-size: 0.8rem;
         color: #6b7280;
-        margin: 0;
     }
 
-    .status-badge {
+    .task-status {
         padding: 0.25rem 0.75rem;
-        border-radius: 20px;
+        border-radius: 15px;
         font-size: 0.7rem;
         font-weight: 600;
-        text-transform: lowercase;
+        text-transform: uppercase;
     }
 
-    .status-pending { background-color: #fef3c7; color: #92400e; }
-    .status-progress { background-color: #dbeafe; color: #1e40af; }
-    .status-completed { background-color: #dcfce7; color: #166534; }
-    .status-revision { background-color: #fef3c7; color: #92400e; }
+    .status-a_faire {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-en_cours {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-termine {
+        background: #d1fae5;
+        color: #065f46;
+    }
 
     /* ============================================
-       MOBILE RESPONSIVE
+       MODAL STYLES
+       ============================================ */
+    .modal-content {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #059669, #10b981);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        border-bottom: none;
+    }
+
+    .modal-title {
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+    }
+
+    .modal-title i {
+        margin-right: 0.5rem;
+    }
+
+    .btn-close {
+        color: white;
+        opacity: 0.8;
+        filter: invert(1);
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e5e7eb;
+        padding: 1.5rem 2rem;
+    }
+
+    /* ============================================
+       RESPONSIVE
        ============================================ */
     @media (max-width: 768px) {
+        .main-content {
+            margin-left: 0;
+            width: 100%;
+        }
+
         .sidebar {
             transform: translateX(-100%);
             transition: transform 0.3s ease;
@@ -584,49 +668,33 @@ AUTEUR : PlanifTech ORMVAT
             transform: translateX(0);
         }
 
-        .main-content {
-            margin-left: 0;
-            width: 100%;
-            padding: 1rem;
+        .content-grid {
+            grid-template-columns: 1fr;
         }
 
         .stats-grid {
             grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-
-        .content-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-
-        .welcome-banner {
-            padding: 1.5rem;
-        }
-
-        .welcome-content h2 {
-            font-size: 1.5rem;
         }
     }
 
     .mobile-toggle {
         display: none;
-        position: fixed;
-        top: 1rem;
-        left: 1rem;
-        z-index: 1001;
-        background: #10b981;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.75rem;
-        font-size: 1.25rem;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
     }
 
     @media (max-width: 768px) {
         .mobile-toggle {
             display: block;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
     }
 </style>
@@ -644,21 +712,20 @@ AUTEUR : PlanifTech ORMVAT
         <!-- Sidebar Header -->
         <div class="sidebar-header">
             <div class="sidebar-logo">
-                <i class="bi bi-tools"></i>
+                <i class="bi bi-water"></i>
                 <div>
-                    <h1 class="sidebar-brand">Technicien</h1>
+                    <h1 class="sidebar-brand">PlanifTech</h1>
                     <p class="sidebar-subtitle">ORMVAT</p>
                 </div>
             </div>
 
-            <!-- User Info in Sidebar -->
             <div class="sidebar-user">
                 <div class="user-avatar-sidebar">
-                    {{ strtoupper(substr(auth()->user()->prenom, 0, 1) . substr(auth()->user()->nom, 0, 1)) }}
+                    {{ substr(auth()->user()->prenom, 0, 1) }}{{ substr(auth()->user()->nom, 0, 1) }}
                 </div>
                 <div class="user-info-sidebar">
-                    <h4>{{ auth()->user()->prenom }} {{ auth()->user()->nom }}</h4>
-                    <p>Technicien Terrain</p>
+                    <h4>{{ auth()->user()->nom_complet }}</h4>
+                    <p>{{ ucfirst(auth()->user()->role) }}</p>
                 </div>
             </div>
         </div>
@@ -666,83 +733,55 @@ AUTEUR : PlanifTech ORMVAT
         <!-- Navigation -->
         <nav class="sidebar-nav">
             <div class="nav-section">
-                <div class="nav-section-title">Mon espace</div>
+                <div class="nav-section-title">Navigation</div>
                 <a href="{{ route('dashboard') }}" class="nav-item active">
-                    <i class="bi bi-speedometer2"></i>
+                    <i class="bi bi-house"></i>
                     Tableau de bord
                 </a>
                 <a href="{{ route('tasks.index') }}" class="nav-item">
-                    <i class="bi bi-list-task"></i>
-                    Mes tâches
-                    @php
-                        try {
-                            $urgentTasks = auth()->user()->taches()->where('priorite', 'urgent')->count();
-                            if ($urgentTasks > 0) {
-                                echo '<span class="nav-badge">'.$urgentTasks.'</span>';
-                            }
-                        } catch (\Exception $e) {
-                            echo '<span class="nav-badge">1</span>';
-                        }
-                    @endphp
-                </a>
-            </div>
-
-            <div class="nav-section">
-                <div class="nav-section-title">Interventions</div>
-                <a href="{{ route('reports.index') }}" class="nav-item">
-                    <i class="bi bi-clipboard-data"></i>
-                    Mes rapports
-                </a>
-                <a href="{{ route('reports.create') }}" class="nav-item">
-                    <i class="bi bi-plus-circle"></i>
-                    Nouveau rapport
+                    <i class="bi bi-list-check"></i>
+                    Mes Tâches
+                    @if($stats['tasks']['pending'] > 0)
+                        <span class="nav-badge">{{ $stats['tasks']['pending'] }}</span>
+                    @endif
                 </a>
                 <a href="{{ route('events.index') }}" class="nav-item">
-                    <i class="bi bi-calendar-check"></i>
-                    Planning
+                    <i class="bi bi-calendar-event"></i>
+                    Événements
+                    @if($stats['events']['invited'] > 0)
+                        <span class="nav-badge">{{ $stats['events']['invited'] }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('reports.index') }}" class="nav-item">
+                    <i class="bi bi-file-text"></i>
+                    Rapports
                 </a>
             </div>
 
             <div class="nav-section">
-                <div class="nav-section-title">Ressources</div>
+                <div class="nav-section-title">Gestion</div>
                 <a href="{{ route('projects.index') }}" class="nav-item">
-                    <i class="bi bi-folder-check"></i>
-                    Projets assignés
+                    <i class="bi bi-folder"></i>
+                    Projets
                 </a>
-                <a href="#" class="nav-item">
-                    <i class="bi bi-geo-alt"></i>
-                    Zones d'intervention
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="bi bi-telephone"></i>
-                    Contacts urgents
+                <a href="{{ route('users.index') }}" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    Équipe
                 </a>
             </div>
 
             <div class="nav-section">
-                <div class="nav-section-title">Outils</div>
-                <a href="#" class="nav-item">
-                    <i class="bi bi-camera"></i>
-                    Photos terrain
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="bi bi-map"></i>
-                    Cartes zones
-                </a>
-            </div>
-
-            <div class="nav-section">
-                <div class="nav-section-title">Profil</div>
+                <div class="nav-section-title">Compte</div>
                 <a href="{{ route('profile.edit') }}" class="nav-item">
                     <i class="bi bi-person-gear"></i>
-                    Mon profil
+                    Mon Profil
                 </a>
             </div>
         </nav>
 
         <!-- Sidebar Footer -->
         <div class="sidebar-footer">
-            <form method="POST" action="{{ route('logout') }}" style="width: 100%;">
+            <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" class="logout-btn">
                     <i class="bi bi-box-arrow-right"></i>
@@ -755,293 +794,299 @@ AUTEUR : PlanifTech ORMVAT
     <!-- Main Content -->
     <main class="main-content">
         <div class="dashboard-container">
-
             <!-- Welcome Banner -->
             <div class="welcome-banner">
                 <div class="welcome-content">
-                    <h2>Bonjour {{ auth()->user()->prenom }} !</h2>
-                    <p>Bienvenue dans votre espace technicien. Vous avez
-                        @php
-                            try {
-                                echo auth()->user()->taches()->where('statut', 'en_attente')->count() ?? 3;
-                            } catch (\Exception $e) {
-                                echo '3';
-                            }
-                        @endphp
-                        tâches en attente aujourd'hui.
-                    </p>
+                    <h2>Bonjour {{ auth()->user()->prenom }} 👋</h2>
+                    <p>Bienvenue sur votre espace PlanifTech ORMVAT. Voici un aperçu de vos activités.</p>
                 </div>
             </div>
 
-            <!-- Stats Cards -->
+            <!-- Statistiques -->
             <div class="stats-grid">
+                <!-- Tâches -->
                 <div class="stat-card">
                     <div class="stat-header">
                         <div class="stat-icon completed">
-                            <i class="bi bi-check-circle"></i>
+                            <i class="bi bi-list-check"></i>
                         </div>
                         <div class="stat-content">
-                            <h3>Tâches terminées</h3>
-                            <div class="stat-value">
-                                @php
-                                    try {
-                                        if (method_exists(auth()->user(), 'taches')) {
-                                            echo auth()->user()->taches()->where('statut', 'termine')->count();
-                                        } else {
-                                            echo '8';
-                                        }
-                                    } catch (\Exception $e) {
-                                        echo '8';
-                                    }
-                                @endphp
-                            </div>
-                            <div class="stat-trend">
-                                <i class="bi bi-arrow-up"></i> +2 cette semaine
-                            </div>
+                            <h3>Mes Tâches</h3>
+                            <div class="stat-value">{{ $stats['tasks']['total'] }}</div>
+                            <div class="stat-trend">{{ $stats['tasks']['completed'] }} terminées</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Événements -->
                 <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon progress">
-                            <i class="bi bi-clock"></i>
+                        <div class="stat-icon events">
+                            <i class="bi bi-calendar-event"></i>
                         </div>
                         <div class="stat-content">
-                            <h3>En cours</h3>
-                            <div class="stat-value">
-                                @php
-                                    try {
-                                        if (method_exists(auth()->user(), 'taches')) {
-                                            echo auth()->user()->taches()->where('statut', 'en_cours')->count();
-                                        } else {
-                                            echo '3';
-                                        }
-                                    } catch (\Exception $e) {
-                                        echo '3';
-                                    }
-                                @endphp
-                            </div>
-                            <div class="stat-trend">
-                                <i class="bi bi-arrow-right"></i> En progression
-                            </div>
+                            <h3>Événements</h3>
+                            <div class="stat-value">{{ $stats['events']['total'] }}</div>
+                            <div class="stat-trend">{{ $stats['events']['upcoming'] }} à venir</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Invitations en attente -->
+                @if($stats['events']['invited'] > 0)
                 <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon urgent">
-                            <i class="bi bi-exclamation-triangle"></i>
+                        <div class="stat-icon invitations">
+                            <i class="bi bi-envelope-exclamation"></i>
                         </div>
                         <div class="stat-content">
-                            <h3>Urgentes</h3>
-                            <div class="stat-value">
-                                @php
-                                    try {
-                                        if (method_exists(auth()->user(), 'taches')) {
-                                            echo auth()->user()->taches()->where('priorite', 'urgent')->count();
-                                        } else {
-                                            echo '1';
-                                        }
-                                    } catch (\Exception $e) {
-                                        echo '1';
-                                    }
-                                @endphp
-                            </div>
-                            <div class="stat-trend">
-                                <i class="bi bi-exclamation-circle"></i> Attention requise
-                            </div>
+                            <h3>Invitations</h3>
+                            <div class="stat-value">{{ $stats['events']['invited'] }}</div>
+                            <div class="stat-trend">En attente de réponse</div>
                         </div>
                     </div>
                 </div>
+                @endif
 
+                <!-- Rapports -->
                 <div class="stat-card">
                     <div class="stat-header">
                         <div class="stat-icon reports">
-                            <i class="bi bi-file-earmark-text"></i>
+                            <i class="bi bi-file-text"></i>
                         </div>
                         <div class="stat-content">
-                            <h3>Rapports ce mois</h3>
-                            <div class="stat-value">
-                                @php
-                                    try {
-                                        if (method_exists(auth()->user(), 'rapports')) {
-                                            echo auth()->user()->rapports()->whereMonth('created_at', now()->month)->count();
-                                        } else {
-                                            echo '12';
-                                        }
-                                    } catch (\Exception $e) {
-                                        echo '12';
-                                    }
-                                @endphp
-                            </div>
-                            <div class="stat-trend">
-                                <i class="bi bi-arrow-up"></i> +3 vs mois dernier
-                            </div>
+                            <h3>Rapports</h3>
+                            <div class="stat-value">{{ $stats['reports']['total'] }}</div>
+                            <div class="stat-trend">{{ $stats['reports']['this_month'] }} ce mois</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Content Grid -->
+            <!-- Contenu Principal -->
             <div class="content-grid">
-                <!-- Quick Actions -->
-                <div class="quick-actions">
+                <!-- Invitations en attente -->
+                <div class="section-card">
                     <div class="section-header">
-                        <h3 class="section-title">Actions rapides</h3>
+                        <h3 class="section-title">
+                            <i class="bi bi-envelope-exclamation"></i>
+                            Invitations en attente
+                        </h3>
                     </div>
-                    <div class="action-list">
-                        <a href="{{ route('reports.create') }}" class="action-btn create">
-                            <i class="bi bi-plus-circle"></i>
-                            Créer un rapport
-                        </a>
-
-                        <a href="{{ route('tasks.index') }}" class="action-btn view">
-                            <i class="bi bi-list-check"></i>
-                            Voir mes tâches
-                        </a>
-
-                        <a href="{{ route('events.index') }}" class="action-btn planning">
-                            <i class="bi bi-calendar-event"></i>
-                            Planning du jour
-                        </a>
-
-                        <a href="#" class="action-btn contacts">
-                            <i class="bi bi-phone"></i>
-                            Contacts urgents
-                        </a>
+                    <div class="section-body">
+                        @if($pendingInvitations->count() > 0)
+                            @foreach($pendingInvitations as $event)
+                                @php
+                                    $participation = $event->participants->first();
+                                @endphp
+                                <div class="event-item invitation">
+                                    <div class="event-icon invitation">
+                                        <i class="bi bi-calendar-question"></i>
+                                    </div>
+                                    <div class="event-details">
+                                        <h4 class="event-title">{{ $event->titre }}</h4>
+                                        <p class="event-meta">
+                                            {{ $event->date_debut->format('d/m/Y à H:i') }} - {{ $event->lieu }}
+                                        </p>
+                                    </div>
+                                    <div class="event-actions">
+                                        <button type="button" class="btn-event btn-confirm" 
+                                                onclick="showParticipationModal('confirmer', {{ $event->id }})">
+                                            <i class="bi bi-check-lg"></i> Confirmer
+                                        </button>
+                                        <button type="button" class="btn-event btn-decline" 
+                                                onclick="showParticipationModal('decliner', {{ $event->id }})">
+                                            <i class="bi bi-x-lg"></i> Décliner
+                                        </button>
+                                        <a href="{{ route('events.show', $event) }}" class="btn-event btn-view">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="empty-state">
+                                <i class="bi bi-calendar-check"></i>
+                                <p>Aucune invitation en attente</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
-                <!-- Priority Tasks -->
-                <div class="tasks-section">
+                <!-- Événements à venir -->
+                <div class="section-card">
                     <div class="section-header">
-                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <h3 class="section-title">Mes tâches prioritaires</h3>
-                            <a href="{{ route('tasks.index') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
-                        </div>
+                        <h3 class="section-title">
+                            <i class="bi bi-calendar-week"></i>
+                            Événements à venir
+                        </h3>
                     </div>
-
-                    <div class="task-card urgent">
-                        <div class="task-header">
-                            <h4 class="task-title">Réparation pompe Station A</h4>
-                            <span class="priority-badge priority-urgent">Urgent</span>
-                        </div>
-                        <div class="task-meta">
-                            <span><i class="bi bi-geo-alt me-1"></i>Zone A - Station de pompage principale</span>
-                            <span><i class="bi bi-clock me-1"></i>Échéance: Aujourd'hui 16h00</span>
-                        </div>
-                        <p class="task-description">Défaillance de la pompe principale. Intervention urgente requise pour maintenir l'irrigation.</p>
-                    </div>
-
-                    <div class="task-card high">
-                        <div class="task-header">
-                            <h4 class="task-title">Inspection canal Zone B</h4>
-                            <span class="priority-badge priority-high">Priorité élevée</span>
-                        </div>
-                        <div class="task-meta">
-                            <span><i class="bi bi-geo-alt me-1"></i>Zone B - Canal principal</span>
-                            <span><i class="bi bi-clock me-1"></i>Échéance: Demain 10h00</span>
-                        </div>
-                        <p class="task-description">Inspection de routine du canal principal après les dernières pluies.</p>
-                    </div>
-
-                    <div class="task-card normal">
-                        <div class="task-header">
-                            <h4 class="task-title">Maintenance préventive équipements</h4>
-                            <span class="priority-badge priority-normal">Normal</span>
-                        </div>
-                        <div class="task-meta">
-                            <span><i class="bi bi-geo-alt me-1"></i>Atelier technique</span>
-                            <span><i class="bi bi-clock me-1"></i>Échéance: Cette semaine</span>
-                        </div>
-                        <p class="task-description">Maintenance préventive des équipements selon le planning mensuel.</p>
+                    <div class="section-body">
+                        @if($upcomingEvents->count() > 0)
+                            @foreach($upcomingEvents as $event)
+                                <div class="event-item confirmed">
+                                    <div class="event-icon confirmed">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                    <div class="event-details">
+                                        <h4 class="event-title">{{ $event->titre }}</h4>
+                                        <p class="event-meta">
+                                            {{ $event->date_debut->format('d/m/Y à H:i') }} - {{ $event->lieu }}
+                                        </p>
+                                    </div>
+                                    <div class="event-actions">
+                                        <a href="{{ route('events.show', $event) }}" class="btn-event btn-view">
+                                            <i class="bi bi-eye"></i> Voir
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="empty-state">
+                                <i class="bi bi-calendar-x"></i>
+                                <p>Aucun événement à venir</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
 
-            <!-- Recent Reports -->
-            <div class="reports-table">
+            <!-- Événements d'aujourd'hui -->
+            @if($todayEvents->count() > 0)
+            <div class="section-card">
                 <div class="section-header">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                        <h3 class="section-title">Mes derniers rapports</h3>
-                        <a href="{{ route('reports.index') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
-                    </div>
+                    <h3 class="section-title">
+                        <i class="bi bi-calendar-day"></i>
+                        Événements d'aujourd'hui
+                    </h3>
                 </div>
-                <div class="table-content">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Rapport</th>
-                                <th>Type</th>
-                                <th>Statut</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div class="report-info">
-                                        <h4>Intervention pompe P-001</h4>
-                                        <p>Zone A - Station principale</p>
-                                    </div>
-                                </td>
-                                <td>Maintenance corrective</td>
-                                <td><span class="status-badge status-completed">validé</span></td>
-                                <td>{{ now()->subDays(1)->format('d/m/Y') }}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="report-info">
-                                        <h4>Inspection canal C-205</h4>
-                                        <p>Zone C - Canal secondaire</p>
-                                    </div>
-                                </td>
-                                <td>Inspection de routine</td>
-                                <td><span class="status-badge status-revision">en révision</span></td>
-                                <td>{{ now()->subDays(2)->format('d/m/Y') }}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="report-info">
-                                        <h4>Réparation vanne V-112</h4>
-                                        <p>Zone B - Réseau de distribution</p>
-                                    </div>
-                                </td>
-                                <td>Intervention urgente</td>
-                                <td><span class="status-badge status-completed">validé</span></td>
-                                <td>{{ now()->subDays(3)->format('d/m/Y') }}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="report-info">
-                                        <h4>Nettoyage filtres Station B</h4>
-                                        <p>Zone B - Station de filtrage</p>
-                                    </div>
-                                </td>
-                                <td>Maintenance préventive</td>
-                                <td><span class="status-badge status-pending">en attente</span></td>
-                                <td>{{ now()->subDays(4)->format('d/m/Y') }}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="report-info">
-                                        <h4>Contrôle débit Station C</h4>
-                                        <p>Zone C - Station de mesure</p>
-                                    </div>
-                                </td>
-                                <td>Contrôle qualité</td>
-                                <td><span class="status-badge status-progress">en cours</span></td>
-                                <td>{{ now()->subDays(5)->format('d/m/Y') }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="section-body">
+                    @foreach($todayEvents as $event)
+                        <div class="event-item today">
+                            <div class="event-icon today">
+                                <i class="bi bi-calendar-day"></i>
+                            </div>
+                            <div class="event-details">
+                                <h4 class="event-title">{{ $event->titre }}</h4>
+                                <p class="event-meta">
+                                    {{ $event->date_debut->format('H:i') }} - {{ $event->date_fin->format('H:i') }} | {{ $event->lieu }}
+                                </p>
+                            </div>
+                            <div class="event-actions">
+                                <a href="{{ route('events.show', $event) }}" class="btn-event btn-view">
+                                    <i class="bi bi-eye"></i> Voir
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             </div>
+            @endif
 
+            <!-- Tâches récentes -->
+            <div class="content-grid">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="bi bi-list-task"></i>
+                            Mes tâches prioritaires
+                        </h3>
+                    </div>
+                    <div class="section-body">
+                        @if($recentTasks->count() > 0)
+                            @foreach($recentTasks as $task)
+                                <div class="task-item {{ $task->priorite }}">
+                                    <div class="task-priority {{ $task->priorite }}">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                    </div>
+                                    <div class="task-content">
+                                        <h4 class="task-title">{{ $task->titre }}</h4>
+                                        <p class="task-deadline">
+                                            Échéance: {{ $task->date_echeance->format('d/m/Y') }}
+                                        </p>
+                                    </div>
+                                    <span class="task-status status-{{ $task->statut }}">
+                                        {{ ucfirst(str_replace('_', ' ', $task->statut)) }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="empty-state">
+                                <i class="bi bi-check2-all"></i>
+                                <p>Toutes vos tâches sont à jour !</p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Rapports récents -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="bi bi-file-text"></i>
+                            Rapports récents
+                        </h3>
+                    </div>
+                    <div class="section-body">
+                        @if($recentReports->count() > 0)
+                            @foreach($recentReports as $report)
+                                <div class="task-item">
+                                    <div class="task-priority basse">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </div>
+                                    <div class="task-content">
+                                        <h4 class="task-title">{{ $report->titre }}</h4>
+                                        <p class="task-deadline">
+                                            {{ $report->date_intervention->format('d/m/Y') }} - {{ $report->lieu }}
+                                        </p>
+                                    </div>
+                                    <a href="{{ route('reports.show', $report) }}" class="btn-event btn-view">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="empty-state">
+                                <i class="bi bi-file-plus"></i>
+                                <p>Aucun rapport récent</p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
+</div>
+
+<!-- Modal de participation -->
+<div class="modal fade" id="participationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="participationModalTitle">
+                    <i class="bi bi-calendar-check"></i>
+                    Confirmer la participation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="participationForm" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <p id="participationQuestion">Voulez-vous confirmer votre participation à cet événement ?</p>
+                    
+                    <div class="mb-3">
+                        <label for="commentaire" class="form-label">Commentaire (optionnel)</label>
+                        <textarea class="form-control" id="commentaire" name="commentaire" rows="3" 
+                                  placeholder="Ajoutez un commentaire si vous le souhaitez..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary" id="participationConfirmBtn">Confirmer</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -1065,13 +1110,39 @@ document.addEventListener('click', function(event) {
     }
 });
 
+// Fonction pour afficher le modal de participation
+function showParticipationModal(action, eventId) {
+    const modal = new bootstrap.Modal(document.getElementById('participationModal'));
+    const form = document.getElementById('participationForm');
+    const title = document.getElementById('participationModalTitle');
+    const question = document.getElementById('participationQuestion');
+    const btn = document.getElementById('participationConfirmBtn');
+
+    if (action === 'confirmer') {
+        title.innerHTML = '<i class="bi bi-check-circle"></i> Confirmer votre participation';
+        question.textContent = 'Voulez-vous confirmer votre participation à cet événement ?';
+        btn.textContent = 'Confirmer ma participation';
+        btn.className = 'btn btn-success';
+        form.action = `/events/${eventId}/confirmer`;
+    } else {
+        title.innerHTML = '<i class="bi bi-x-circle"></i> Décliner l\'invitation';
+        question.textContent = 'Voulez-vous décliner votre participation à cet événement ?';
+        btn.textContent = 'Décliner l\'invitation';
+        btn.className = 'btn btn-danger';
+        form.action = `/events/${eventId}/decliner`;
+    }
+
+    document.getElementById('commentaire').value = '';
+    modal.show();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Animation pour les cartes de statistiques
     const statCards = document.querySelectorAll('.stat-card');
     statCards.forEach((card, index) => {
         card.style.opacity = '0';
-        card.style.transform = 'translateY(20px)';
-
+        card.style.transform = 'translateY(30px)';
+        
         setTimeout(() => {
             card.style.transition = 'all 0.6s ease';
             card.style.opacity = '1';
@@ -1079,122 +1150,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }, index * 150);
     });
 
-    // Animation pour les cartes de tâches
-    const taskCards = document.querySelectorAll('.task-card');
-    taskCards.forEach((card, index) => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateX(-20px)';
-
-        setTimeout(() => {
-            card.style.transition = 'all 0.5s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateX(0)';
-        }, 300 + (index * 100));
-    });
-
-    // Animation pour les boutons d'action rapide
-    const actionBtns = document.querySelectorAll('.action-btn');
-    actionBtns.forEach((btn, index) => {
-        btn.style.opacity = '0';
-        btn.style.transform = 'translateX(-20px)';
-
-        setTimeout(() => {
-            btn.style.transition = 'all 0.4s ease';
-            btn.style.opacity = '1';
-            btn.style.transform = 'translateX(0)';
-        }, 400 + (index * 100));
-    });
-
     // Animation pour les sections
-    const sections = document.querySelectorAll('.reports-table, .quick-actions, .tasks-section');
+    const sections = document.querySelectorAll('.section-card');
     sections.forEach((section, index) => {
         section.style.opacity = '0';
         section.style.transform = 'translateY(30px)';
-
+        
         setTimeout(() => {
             section.style.transition = 'all 0.6s ease';
             section.style.opacity = '1';
             section.style.transform = 'translateY(0)';
         }, 600 + (index * 200));
     });
-
-    // Animation pour les lignes du tableau
-    const tableRows = document.querySelectorAll('.reports-table tbody tr');
-    tableRows.forEach((row, index) => {
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-10px)';
-
-        setTimeout(() => {
-            row.style.transition = 'all 0.3s ease';
-            row.style.opacity = '1';
-            row.style.transform = 'translateX(0)';
-        }, 1000 + (index * 50));
-    });
 });
-
-// Fonction pour marquer une tâche comme terminée
-function markTaskCompleted(taskId) {
-    if (confirm('Marquer cette tâche comme terminée ?')) {
-        // Ici vous pouvez ajouter l'appel AJAX pour mettre à jour la tâche
-        console.log('Tâche ' + taskId + ' marquée comme terminée');
-
-        // Exemple d'animation de succès
-        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
-        if (taskCard) {
-            taskCard.style.backgroundColor = '#dcfce7';
-            taskCard.style.borderLeftColor = '#16a34a';
-
-            setTimeout(() => {
-                taskCard.style.opacity = '0.7';
-                taskCard.style.transform = 'scale(0.98)';
-            }, 1000);
-        }
-    }
-}
-
-// Fonction pour afficher les détails d'une tâche
-function showTaskDetails(taskId) {
-    // Ici vous pouvez ouvrir un modal avec les détails de la tâche
-    console.log('Afficher les détails de la tâche ' + taskId);
-}
-
-// Animation pulse pour les badges urgents
-function animateUrgentBadges() {
-    const urgentBadges = document.querySelectorAll('.priority-urgent, .nav-badge');
-    urgentBadges.forEach(badge => {
-        badge.style.animation = 'pulse 2s infinite';
-    });
-}
-
-// CSS pour l'animation pulse
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-`;
-document.head.appendChild(style);
-
-// Démarrer l'animation des badges urgents
-setTimeout(animateUrgentBadges, 2000);
-
-// Mise à jour automatique des statistiques (optionnel)
-function updateDashboardStats() {
-    const statValues = document.querySelectorAll('.stat-value');
-    statValues.forEach(stat => {
-        stat.style.transform = 'scale(1.02)';
-        stat.style.color = '#10b981';
-        setTimeout(() => {
-            stat.style.transform = 'scale(1)';
-            stat.style.color = '#1f2937';
-        }, 300);
-    });
-}
-
-// Mettre à jour les stats toutes les 5 minutes (optionnel)
-// setInterval(updateDashboardStats, 300000);
 
 // Fonction pour afficher une notification
 function showNotification(message, type = 'success') {
@@ -1206,7 +1174,7 @@ function showNotification(message, type = 'success') {
     notification.style.zIndex = '9999';
     notification.style.minWidth = '300px';
     notification.innerHTML = `
-        <i class="bi bi-check-circle me-2"></i>
+        <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
         ${message}
         <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
     `;
@@ -1214,13 +1182,37 @@ function showNotification(message, type = 'success') {
     document.body.appendChild(notification);
 
     setTimeout(() => {
-        notification.remove();
+        if (notification.parentElement) {
+            notification.remove();
+        }
     }, 5000);
 }
 
-// Simulation de notifications en temps réel
-setTimeout(() => {
-    showNotification('Nouveau rapport validé !', 'success');
-}, 10000);
+// Rafraîchir automatiquement les invitations toutes les 5 minutes
+setInterval(() => {
+    // Vérifier s'il y a de nouvelles invitations (optionnel)
+    fetch('/api/notifications/check', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.new_invitations > 0) {
+            showNotification(`Vous avez ${data.new_invitations} nouvelle(s) invitation(s) !`, 'info');
+            // Mettre à jour le badge dans la sidebar
+            const badge = document.querySelector('.nav-item[href*="events"] .nav-badge');
+            if (badge) {
+                badge.textContent = data.new_invitations;
+                badge.style.display = 'inline-block';
+            }
+        }
+    })
+    .catch(error => {
+        console.log('Erreur lors de la vérification des notifications:', error);
+    });
+}, 300000); // 5 minutes
 </script>
 @endpush

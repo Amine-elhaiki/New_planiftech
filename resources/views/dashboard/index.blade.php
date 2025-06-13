@@ -421,6 +421,30 @@ AUTEUR : PlanifTech ORMVAT
         }
     }
 
+        .role-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .role-admin { 
+        background: #ede9fe; 
+        color: #6b21a8; 
+    }
+    
+    .role-chef-projet { 
+        background: #fef3c7; 
+        color: #92400e; 
+    }
+    
+    .role-technicien { 
+        background: #dbeafe; 
+        color: #1e40af; 
+    }
+
     /* ============================================
        MOBILE TOGGLE BUTTON
        ============================================ */
